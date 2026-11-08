@@ -349,13 +349,27 @@ const owns = (inv, num) => !!inv && inv.cards.has(num);
 const ownsFinish = (inv, num, f) => !!inv && !!(inv.cards.get(num) || {})[f];
 function spares(inv) {
   const out = [];
-  for (const [num, fins] of inv.cards) for (const [f, n] of Object.entries(fins)) if (n > 1) out.push({ num, finish: f, spare: n - 1 });
+  for (const [num, fins] of inv.cards) {
+    const sp = spareOf(fins);
+    for (const [f, n] of Object.entries(sp)) if (n > 0) out.push({ num, finish: f, spare: n, fins });
+  }
   return out.sort((a, b) => a.num - b.num || FINISH_ORDER(a.finish) - FINISH_ORDER(b.finish));
+}
+// Spare rules: a Foil or Cracked Ice copy is spare only when the wallet has more than one of that finish.
+// Base copies are all spare when the wallet also holds the card in a rarer finish; otherwise one Base is kept.
+function spareOf(fins) {
+  const rarer = Object.keys(fins).some(f => f !== "Base"), out = {};
+  for (const [f, n] of Object.entries(fins)) out[f] = f === "Base" ? n - (rarer ? 0 : 1) : n - 1;
+  return out;
+}
+function finishList(fins) {
+  return Object.entries(fins).sort((a, b) => FINISH_ORDER(a[0]) - FINISH_ORDER(b[0]))
+    .filter(([, n]) => n > 0).map(([f, n]) => `${n} ${finishLabel(f)}`).join(", ");
 }
 function counts(inv) {
   let spare = 0, foil = 0, ser = 0;
   for (const fins of inv.cards.values()) for (const [f, n] of Object.entries(fins)) {
-    if (n > 1) spare += n - 1;
+    spare += spareOf(fins)[f];
     if (f === "Foil") foil += n; else if (f !== "Base") ser += n;
   }
   return { designs: inv.cards.size, total: inv.total, spare, foil, ser };
@@ -395,6 +409,10 @@ function renderSummary() {
 }
 
 // ---------- Rendering: trade board ----------
+function dupLabel(fins) {
+  const owned = Object.values(fins).reduce((a, b) => a + b, 0);
+  return `owns ${owned} (${finishList(fins)}) · spare: ${finishList(spareOf(fins))}`;
+}
 function itemRow(x, dir) {
   const c = CARD[x.num], k = x.num + "|" + x.finish, id = dir + ":" + k;
   const img = imageFor(x.num);
@@ -404,7 +422,7 @@ function itemRow(x, dir) {
     <input type="checkbox" data-sel="${esc(id)}"${on ? " checked" : ""}>
     ${img ? `<img class="thumb" src="${esc(img)}" alt="" loading="lazy">` : `<span class="thumb ph">#${x.num}</span>`}
     <span class="meta"><span class="nm">#${x.num} ${esc(c.name)}</span>
-      <span class="sub">${finishChip(x.finish)}<span class="rar ${c.rarity}">${c.rarity}</span><span>${esc(c.set)}</span>${x.spare > 1 ? `<span>${x.spare} spare</span>` : ""}</span></span>
+      <span class="sub">${finishChip(x.finish)}<span class="rar ${c.rarity}">${c.rarity}</span><span>${esc(c.set)}</span><span class="dup">${dupLabel(x.fins)}</span></span></span>
     <span class="price${v === null ? " na" : ""}" data-price="${esc(k)}">${prices.has(k) ? (v == null ? "no listing" : sol(v)) : "…"}</span>
   </label>`;
 }
