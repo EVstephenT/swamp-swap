@@ -78,6 +78,8 @@ form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; alig
 .btn[disabled] { opacity: .5; cursor: progress; }
 .hint { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); text-align: right; }
 .hint b { color: var(--fg); font-weight: 600; }
+.result { margin: -6px 0 0; font-size: 14px; color: var(--muted); }
+.status:empty { display: none; }
 .status { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); min-height: 1.5em; }
 .status.err { color: var(--bad); }
 
@@ -99,21 +101,23 @@ form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; alig
 .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; color: var(--muted); font-weight: 600; margin-bottom: -1px; }
 .tabs button[aria-selected="true"] { color: var(--fg); border-color: var(--mutant); }
 .tabs button { white-space: nowrap; }
-.tray-ctrl { display: flex; align-items: center; gap: 14px; }
-.offer-btns { display: grid; gap: 4px; justify-items: center; }
-.offer-btns .btn { width: 100%; }
+.tray-prices { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.tray-offer { display: grid; gap: 6px; align-content: start; min-width: 0; padding-left: 18px; border-left: 1px solid var(--line); }
+.pnote, .onote { margin: 0; font-size: 12px; color: var(--muted); }
+.onote b { color: var(--fg); font-weight: 600; }
+.ocount { font-size: 13px; }
+.offer-btns { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .linkish { background: none; border: 0; padding: 2px 4px; color: var(--muted); font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 2px; }
 .linkish:hover { color: var(--fg); }
-.vswitch { display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 6px 0; color: var(--muted); font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.vswitch { justify-self: start; display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 2px 0; color: var(--muted); font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; }
 .vswitch .short { display: none; }
 .vswitch .track { width: 32px; height: 18px; border-radius: 9px; background: var(--line); position: relative; transition: background .15s; flex: none; }
 .vswitch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
 .vswitch[aria-checked="true"] { color: var(--fg); }
 .vswitch[aria-checked="true"] .track { background: var(--mutant); }
 .vswitch[aria-checked="true"] .track::after { transform: translateX(14px); background: #0d1a07; }
-body:not(.values) .price, body:not(.values) .meter, body:not(.values) .verdict, body:not(.values) .asof { display: none; }
-.asof { font-size: 11px; color: var(--muted); }
-body:not(.values) .scale-row { justify-content: flex-start; gap: 6px 28px; }
+body:not(.values) .price, body:not(.values) .scale { display: none; }
+.verdict:empty { display: none; }
 
 /* Trade board */
 .board { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
@@ -144,7 +148,7 @@ body:not(.values) .scale-row { justify-content: flex-start; gap: 6px 28px; }
 .rar.Legendary { color: var(--warn); } .rar.Prestige { color: var(--cosmic); } .rar.Rare { color: var(--you); }
 
 /* Balance tray */
-.tray { position: sticky; bottom: 0; z-index: 5; background: rgba(18,28,25,.96); backdrop-filter: blur(6px); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: 1fr auto; gap: 10px 16px; align-items: center; }
+.tray { position: sticky; bottom: 0; z-index: 5; background: rgba(18,28,25,.96); backdrop-filter: blur(6px); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 10px 18px; align-items: start; }
 .scale { display: grid; gap: 6px; min-width: 0; }
 .scale-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; flex-wrap: wrap; }
 .scale-row b { font-family: var(--mono); }
@@ -199,17 +203,17 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
 @media (max-width: 460px) {
   .slot-row { grid-template-columns: 1fr; }
   .vswitch .long { display: none; } .vswitch .short { display: inline; }
-  .tray-ctrl { display: contents; }
+  .tray-prices { display: contents; }
   .tray-toggle { grid-column: 1; grid-row: 1; min-width: 0; }
-  .vswitch { grid-column: 2; grid-row: 1; }
-  .scale { grid-column: 1 / -1; }
-  .offer-btns { grid-column: 1 / -1; }
+  .vswitch { grid-column: 2; grid-row: 1; padding: 6px 0; }
+  .pnote, .scale { grid-column: 1 / -1; }
+  .tray-offer { grid-column: 1 / -1; padding-left: 0; border-left: 0; border-top: 1px solid var(--line); padding-top: 8px; }
   .tray { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
   .tray-toggle { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; background: none; border: 0; padding: 4px 0; color: var(--fg); font: inherit; font-size: 13px; text-align: left; }
   .tray-toggle #trayMini { font-family: var(--mono); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tray-toggle .caret { color: var(--muted); transition: transform .15s; }
   .tray.open .tray-toggle .caret { transform: rotate(180deg); }
-  .tray:not(.open) .scale-row, .tray:not(.open) .verdict, .tray:not(.open) .asof, .tray:not(.open) .offer-btns { display: none; }
+  .tray:not(.open) .scale-row, .tray:not(.open) .verdict, .tray:not(.open) .pnote, .tray:not(.open) .tray-offer { display: none; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -244,11 +248,12 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
       <button class="btn primary" id="go" type="submit">Compare</button>
       <button class="btn" id="swap" type="button" hidden title="Swap whose binder is on which side">⇄ Swap sides</button>
     </div>
-    <p class="hint" id="swapHint" hidden><b>Opened someone's offer link?</b> It shows the trade from their side. Tap <b>⇄ Swap sides</b> to see it from yours.</p>
+    <p class="hint" id="swapHint" hidden><b>Opened someone's offer link?</b><br>It shows the trade from their side. Tap <b>⇄ Swap sides</b> to see it from yours.</p>
     <p class="status" id="status" role="status">Enter two wallets to compare. The full checklist is below.</p>
   </form>
 
   <section class="summary" id="summary" hidden></section>
+  <p class="result" id="result" role="status" hidden></p>
 
   <div class="tabs" role="tablist" id="tabs" hidden>
     <button role="tab" id="tab-trade" aria-selected="true" aria-controls="trade">Trade board</button>
@@ -269,14 +274,18 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
 
   <div class="tray" id="tray" hidden>
     <button class="tray-toggle" id="trayToggle" type="button" aria-expanded="false" aria-controls="tray"><span id="trayMini">No cards picked</span><span class="caret" aria-hidden="true">▴</span></button>
-    <div class="scale">
-      <div class="scale-row"><span id="trayGive">You give: nothing yet</span><span id="trayGet">You get: nothing yet</span></div>
-      <div class="meter" aria-hidden="true"><i class="a" id="mA" style="width:50%"></i><i class="b" id="mB" style="width:50%"></i></div>
-      <div class="verdict" id="verdict">Tick cards on both sides to build an offer. Prices are the current OpenSea floor for that card and finish.</div>
-      <div class="asof" id="asOf"></div>
+    <div class="tray-prices">
+      <button type="button" class="vswitch" id="vswitch" role="switch" aria-checked="false"><span class="track" aria-hidden="true"></span><span class="long">Show floor values</span><span class="short">Values</span></button>
+      <p class="pnote" id="asOf"></p>
+      <div class="scale">
+        <div class="scale-row"><span id="trayGive"></span><span id="trayGet"></span></div>
+        <div class="meter" aria-hidden="true"><i class="a" id="mA" style="width:50%"></i><i class="b" id="mB" style="width:50%"></i></div>
+        <div class="verdict" id="verdict"></div>
+      </div>
     </div>
-    <div class="tray-ctrl">
-      <button type="button" class="vswitch" id="vswitch" role="switch" aria-checked="false"><span class="long">Show floor values</span><span class="short">Values</span><span class="track" aria-hidden="true"></span></button>
+    <div class="tray-offer">
+      <p class="onote">Tick cards on both sides to build an offer, then copy it as a <b>link</b> to open in Swap Swap, or as <b>text</b> to paste in a message.</p>
+      <div class="ocount" id="offerCount">No cards ticked yet.</div>
       <div class="offer-btns">
         <button class="btn primary" id="copyOffer" type="button">Copy offer link</button>
         <button class="linkish" id="copyText" type="button">Copy as text</button>
@@ -325,10 +334,11 @@ async function loadSnapshot() {
 function updateAsOf() {
   const el = $("#asOf"); if (!el) return;
   const sn = state.snap;
+  if (!state.values) { el.textContent = "Turn on to see the current OpenSea floor price for each card and finish."; return; }
   if (sn && sn.fresh) {
     const sameDay = new Date().toDateString() === sn.updated.toDateString();
-    el.textContent = `Floor prices as of ${sn.updated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${sameDay ? "" : " on " + sn.updated.toLocaleDateString([], { month: "short", day: "numeric" })} · refreshed every 30 min`;
-  } else el.textContent = sn ? "Price snapshot is out of date, so prices are being looked up live from OpenSea." : "Live floor prices from OpenSea.";
+    el.textContent = `Current OpenSea floor for each card and finish, as of ${sn.updated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${sameDay ? "" : " on " + sn.updated.toLocaleDateString([], { month: "short", day: "numeric" })} · refreshed every 30 min.`;
+  } else el.textContent = sn ? "Current OpenSea floor for each card and finish, looked up live (the price snapshot is out of date)." : "Current OpenSea floor for each card and finish, looked up live.";
 }
 
 // ---------- Finish handling ----------
@@ -537,9 +547,8 @@ function updateTray() {
   tray.hidden = false;
   const give = selectedSide("give"), get = selectedSide("get");
   const cards = n => `${n} card${n === 1 ? "" : "s"}`;
+  $("#offerCount").textContent = give.length || get.length ? `${state.nameA} gives ${cards(give.length)} · ${state.nameB} gives ${cards(get.length)}` : "No cards ticked yet.";
   if (!state.values) {
-    $("#trayGive").textContent = `${state.nameA} gives ${cards(give.length)}`;
-    $("#trayGet").textContent = `${state.nameB} gives ${cards(get.length)}`;
     $("#trayMini").textContent = give.length || get.length ? `${cards(give.length)} ⇄ ${cards(get.length)}` : "No cards picked";
     return;
   }
@@ -554,7 +563,7 @@ function updateTray() {
   if (!give.length && !get.length) mini.textContent = "No cards picked";
   else { const d = g.sum - r.sum, m = Math.max(g.sum, r.sum), even = m ? Math.abs(d) / m <= 0.1 : true;
     mini.textContent = `${g.sum.toFixed(4)} ⇄ ${sol(r.sum)}` + (even ? " · even" : ""); }
-  if (!give.length && !get.length) { v.className = "verdict"; v.textContent = "Tick cards on both sides to build an offer. Prices are the current OpenSea floor for that card and finish."; return; }
+  if (!give.length && !get.length) { v.className = "verdict"; v.textContent = ""; return; }
   const diff = g.sum - r.sum, gap = Math.abs(diff), rel = both ? gap / Math.max(g.sum, r.sum) : 0;
   if (rel <= 0.1) { v.className = "verdict even"; v.textContent = gap < 0.00005 ? "Even at floor." : `Even at floor: within ${sol(gap)}.`; }
   else { v.className = "verdict off"; v.textContent = `${diff > 0 ? state.nameA : state.nameB} is giving ${sol(gap)} more at floor. Add a spare from the other side, or settle the difference in SOL.`; }
@@ -683,7 +692,6 @@ function shareUrl(withOffer) {
   if (state.B) u.searchParams.set("b", state.B.addr);
   if (state.nameA && state.nameA !== "You") u.searchParams.set("an", state.nameA);
   if (state.nameB && state.nameB !== "Them") u.searchParams.set("bn", state.nameB);
-  if (state.values) u.searchParams.set("v", "1");
   if (withOffer && state.selected.size) u.searchParams.set("o", encodeOffer());
   return u.toString();
 }
@@ -696,6 +704,7 @@ async function copyText(text, btnSel, done) {
   }
 }
 function flash(sel, msg) { const b = $(sel); if (!b.dataset.label) b.dataset.label = b.textContent; b.textContent = msg; clearTimeout(b._t); b._t = setTimeout(() => { b.textContent = b.dataset.label; b._t = null; }, 1600); }
+function setResult(msg) { const r = $("#result"); r.textContent = msg; r.hidden = !msg; }
 function setStatus(msg, err) { const s = $("#status"); s.textContent = msg; s.classList.toggle("err", !!err); }
 
 function fillLine() {
@@ -720,7 +729,7 @@ function swapSides() {
   $("#nameA").value = state.nameA === "You" ? "" : state.nameA; $("#nameB").value = state.nameB === "Them" ? "" : state.nameB;
   history.replaceState(null, "", shareUrl(true));
   renderSummary(); renderTrade(); renderBinder();
-  setStatus(`Sides swapped: ${poss(state.nameA)} binder is now on the left. ` + fillLine());
+  setResult(`Sides swapped: ${poss(state.nameA)} binder is now on the left. ` + fillLine());
 }
 
 // ---------- Compare ----------
@@ -732,6 +741,7 @@ async function compare() {
   if (!B58.test(a) || !B58.test(b)) { setStatus("Both wallets need a valid Solana address.", true); return; }
   if (a === b) { setStatus("Those are the same wallet. Enter two different ones.", true); return; }
   const go = $("#go"); go.disabled = true;
+  setResult("");
   try {
     await snapReady;
     state.A = await loadWallet(a, state.nameA);
@@ -753,7 +763,8 @@ async function compare() {
     history.replaceState(null, "", shareUrl(true));
     renderSummary(); renderTrade(); renderBinder();
     $("#tabs").hidden = false; $("#swap").hidden = false; $("#swapHint").hidden = false; showTab("trade");
-    setStatus(fillLine()
+    setStatus("");
+    setResult(fillLine()
       + (state.selected.size || dropped ? ` Offer loaded: ${state.selected.size} card${state.selected.size === 1 ? "" : "s"} ticked.` : "")
       + (dropped ? ` ${dropped} card${dropped === 1 ? " is" : "s are"} no longer spare in that wallet, so ${dropped === 1 ? "it was" : "they were"} left out.` : ""));
     if (state.selected.size) { const t = $("#tray"); t.classList.add("open"); $("#trayToggle").setAttribute("aria-expanded", true); }
@@ -767,9 +778,8 @@ function setValues(on, persist) {
   state.values = on;
   document.body.classList.toggle("values", on);
   $("#vswitch").setAttribute("aria-checked", on);
-  if (persist) { try { localStorage.setItem("swampswap.values", on ? "1" : "0"); } catch (e) {} }
+  updateAsOf();
   if (!state.A || !state.B) return;
-  if (persist) history.replaceState(null, "", shareUrl(true));
   renderTrade(); renderBinder();
   if (on) selectedSide("give").concat(selectedSide("get")).forEach(x => queuePrice(x.num, x.finish));
 }
@@ -804,8 +814,7 @@ document.addEventListener("click", e => {
   if (q.get("an")) $("#nameA").value = q.get("an");
   if (q.get("bn")) $("#nameB").value = q.get("bn");
   snapReady = loadSnapshot();
-  let saved = null; try { saved = localStorage.getItem("swampswap.values"); } catch (e) {}
-  setValues(q.get("v") === "1" || saved === "1", false);
+  setValues(false);   // each person chooses whether to show prices; always starts off
   renderBinder();
   $("#binder").hidden = false;
   state.pendingOffer = q.get("o") ? decodeOffer(q.get("o")) : null;
