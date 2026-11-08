@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Swamp Swap</title>
+<meta name="description" content="Compare two Mudwater: Swamp Origins binders and find trades.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a night dock — wallet bench up top, trade board as the main table, binder pages below. */
+:root {
+  --ink: #0b1210;        /* swamp water at night */
+  --panel: #121c19;
+  --panel-2: #18251f;
+  --line: #263a31;
+  --fg: #e8e3d3;         /* bone card stock */
+  --muted: #8d9e92;
+  --you: #5fd0cf;        /* wallet A */
+  --them: #f29b54;       /* wallet B */
+  --club: #d6a44d;
+  --mutant: #93d64f;
+  --cosmic: #a593ff;
+  --arcana: #e47d8e;
+  --good: #7fd18b;
+  --warn: #f0c35a;
+  --bad: #ef6f6f;
+  --display: "Bungee", "Impact", "Arial Black", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--ink);
+  color: var(--fg);
+  font: 15px/1.5 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: max(20px, env(safe-area-inset-top, 0px)) max(40px, env(safe-area-inset-bottom, 0px));
+  background-image:
+    radial-gradient(900px 400px at 85% -10%, rgba(147,214,79,.07), transparent 70%),
+    radial-gradient(700px 360px at -10% 10%, rgba(95,208,207,.06), transparent 70%);
+  background-attachment: fixed;
+}
+[hidden] { display: none !important; }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px; }
+a { color: var(--you); }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--you); outline-offset: 2px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* Masthead */
+header.mast { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 20px; }
+.brand { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(30px, 6vw, 46px); line-height: 1; letter-spacing: .5px; }
+.brand span { color: var(--mutant); }
+.tag { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+.setline { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+
+/* Wallet bench */
+form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.slot { display: grid; gap: 6px; min-width: 0; }
+.slot label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.dot.you { background: var(--you); } .dot.them { background: var(--them); }
+.slot-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; }
+.slot input { width: 100%; min-width: 0; background: var(--ink); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; }
+.slot input.addr { font-family: var(--mono); font-size: 13px; }
+.slot input::placeholder { color: #5f6f65; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 9px; padding: 10px 16px; font-weight: 600; white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--mutant); color: #0d1a07; border-color: transparent; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn[disabled] { opacity: .5; cursor: progress; }
+.status { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); min-height: 1.5em; }
+.status.err { color: var(--bad); }
+
+/* Summary */
+.summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.who { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.who.you { box-shadow: inset 3px 0 0 var(--you); }
+.who.them { box-shadow: inset 3px 0 0 var(--them); }
+.who h2 { margin: 0; font-size: 16px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.who h2 .addr { font-family: var(--mono); font-weight: 400; font-size: 12px; color: var(--muted); }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+.stat b { display: block; font-family: var(--mono); font-size: 22px; font-weight: 600; line-height: 1.1; }
+.stat span { font-size: 12px; color: var(--muted); }
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 3px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
+.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; color: var(--muted); font-weight: 600; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-color: var(--mutant); }
+
+/* Trade board */
+.board { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+.lane { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 14px; min-width: 0; }
+.lane > h3 { margin: 0; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.group { display: grid; gap: 6px; }
+.group h4 { margin: 0; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.empty { margin: 0; font-size: 13px; color: var(--muted); padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.empty b { color: var(--fg); font-weight: 600; }
+.item { display: grid; grid-template-columns: auto 40px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 10px; border: 1px solid transparent; }
+.item:hover { background: var(--panel-2); }
+.item.on { border-color: var(--line); background: var(--panel-2); }
+.item input { width: 18px; height: 18px; accent-color: var(--mutant); margin: 0; }
+.thumb { width: 40px; height: 56px; border-radius: 5px; object-fit: cover; background: var(--panel-2); border: 1px solid var(--line); }
+.thumb.ph { display: grid; place-items: center; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.meta { min-width: 0; display: grid; gap: 2px; }
+.meta .nm { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta .sub { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.price { font-family: var(--mono); font-size: 13px; text-align: right; white-space: nowrap; }
+.price.na { color: var(--muted); }
+.more { background: none; border: 0; color: var(--you); padding: 4px 0; font-size: 13px; text-align: left; }
+
+/* Finish + rarity chips */
+.fin { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+.fin.foil { color: #1a1408; border-color: transparent; background: linear-gradient(110deg, #f6d97a, #f3a6c8 40%, #9fd8f5 75%, #f6d97a); }
+.fin.ser { color: #0d1a22; border-color: transparent; background: linear-gradient(135deg, #f4fbff 0 20%, #bfe6f7 20% 38%, #ffffff 38% 52%, #9fd1ea 52% 70%, #e6f6ff 70%); }
+.rar { font-size: 11px; }
+.rar.Legendary { color: var(--warn); } .rar.Prestige { color: var(--cosmic); } .rar.Rare { color: var(--you); }
+
+/* Balance tray */
+.tray { position: sticky; bottom: 0; z-index: 5; background: rgba(18,28,25,.96); backdrop-filter: blur(6px); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: 1fr auto; gap: 10px 16px; align-items: center; }
+.scale { display: grid; gap: 6px; min-width: 0; }
+.scale-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; flex-wrap: wrap; }
+.scale-row b { font-family: var(--mono); }
+.meter { position: relative; height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; display: flex; }
+.meter .a { background: var(--you); } .meter .b { background: var(--them); }
+.verdict { font-size: 13px; }
+.verdict.even { color: var(--good); } .verdict.off { color: var(--warn); }
+
+/* Binder */
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
+.chip[aria-pressed="true"] { color: var(--fg); border-color: var(--mutant); background: var(--panel-2); }
+.tribe { display: grid; gap: 14px; }
+.tribe > h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 22px; letter-spacing: .5px; display: flex; align-items: baseline; gap: 12px; }
+.tribe > h3 small { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0; }
+.set { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 12px; }
+.set-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.set-head h4 { margin: 0; font-size: 16px; }
+.set-head h4 .rng { font-family: var(--mono); font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+.prog { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; }
+.prog > div { display: grid; grid-template-columns: auto 80px auto; gap: 8px; align-items: center; }
+.prog .done { color: var(--good); font-weight: 600; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.tile { display: grid; gap: 6px; padding: 6px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); min-width: 0; }
+.tile .art { position: relative; aspect-ratio: 5 / 7; max-width: 100%; border-radius: 6px; overflow: hidden; background: var(--ink); display: grid; place-items: center; }
+.tile .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tile .art .ph { font-family: var(--display); font-size: 26px; color: var(--line); }
+.tile .no { position: absolute; top: 4px; left: 4px; font-family: var(--mono); font-size: 10px; background: rgba(11,18,16,.8); padding: 1px 5px; border-radius: 4px; }
+.tile .tn { font-size: 12px; font-weight: 500; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.own { display: grid; gap: 3px; font-size: 11px; }
+.own div { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-height: 18px; }
+.own .miss { color: var(--bad); }
+.cnt { font-family: var(--mono); font-size: 10px; padding: 0 5px; border-radius: 4px; background: var(--ink); border: 1px solid var(--line); }
+.cnt.foil { border-color: #f3a6c8; } .cnt.ser { border-color: #bfe6f7; }
+.tile.flag-you { border-color: var(--you); }
+.tile.flag-them { border-color: var(--them); }
+.tile.dim { opacity: .55; }
+
+footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
+
+@media (max-width: 820px) {
+  form.bench { grid-template-columns: 1fr; }
+  .summary, .board { grid-template-columns: 1fr; }
+}
+@media (max-width: 460px) {
+  .slot-row { grid-template-columns: 1fr; }
+  .tray { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <h1 class="brand">Swamp <span>Swap</span></h1>
+      <p class="tag">Put two Mudwater binders side by side and find the trades.</p>
+    </div>
+    <div class="setline">Swamp Origins · 120 cards · 4 tribes · 16 sets</div>
+  </header>
+
+  <form class="bench" id="bench" autocomplete="off">
+    <div class="slot">
+      <label for="nameA"><span class="dot you"></span>Your binder</label>
+      <div class="slot-row">
+        <input id="nameA" placeholder="Name" maxlength="20">
+        <input id="addrA" class="addr" placeholder="Solana wallet address" spellcheck="false">
+      </div>
+    </div>
+    <div class="slot">
+      <label for="nameB"><span class="dot them"></span>Their binder</label>
+      <div class="slot-row">
+        <input id="nameB" placeholder="Name" maxlength="20">
+        <input id="addrB" class="addr" placeholder="Solana wallet address" spellcheck="false">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="go" type="submit">Compare</button>
+      <button class="btn" id="share" type="button" hidden>Copy link</button>
+    </div>
+    <p class="status" id="status" role="status">Enter two wallets to compare. The full checklist is below.</p>
+  </form>
+
+  <section class="summary" id="summary" hidden></section>
+
+  <div class="tabs" role="tablist" id="tabs" hidden>
+    <button role="tab" id="tab-trade" aria-selected="true" aria-controls="trade">Trade board</button>
+    <button role="tab" id="tab-binder" aria-selected="false" aria-controls="binder">Binders</button>
+  </div>
+
+  <section id="trade" role="tabpanel" aria-labelledby="tab-trade" hidden>
+    <div class="board">
+      <div class="lane" id="laneGet"></div>
+      <div class="lane" id="laneGive"></div>
+    </div>
+  </section>
+
+  <section id="binder" role="tabpanel" aria-labelledby="tab-binder" class="wrap" style="gap:18px">
+    <div class="filters" id="filters"></div>
+    <div id="tribes" class="wrap" style="gap:26px"></div>
+  </section>
+
+  <div class="tray" id="tray" hidden>
+    <div class="scale">
+      <div class="scale-row"><span id="trayGive">You give: nothing yet</span><span id="trayGet">You get: nothing yet</span></div>
+      <div class="meter" aria-hidden="true"><i class="a" id="mA" style="width:50%"></i><i class="b" id="mB" style="width:50%"></i></div>
+      <div class="verdict" id="verdict">Tick cards on both sides to build an offer. Prices are the current OpenSea floor for that card and finish.</div>
+    </div>
+    <button class="btn" id="copyOffer" type="button">Copy offer</button>
+  </div>
+
+  <footer>
+    <span>Holdings and floor prices come from OpenSea. Floors move fast, so check before you trade.</span>
+    <span>Fan-made by <a href="https://x.com/108stitchesNFT" target="_blank" rel="noopener">108stitches</a>. Not affiliated with Yuga Labs. Card names belong to Yuga Labs.</span>
+  </footer>
+</div>
+
+<script>
+const DATA = {"tribes":{"Club":["On the Water","No Crying in the Casino","The Clubhouse","Away Games","Day Dreaming","Dog Food","Prestige"],"Mutant":["Chemistry Club","The Sewer","Mutated Prestige"],"Cosmic":["Cosmic Curtis","Phone Home","Cosmic Prestige"],"Arcana":["Tarot","The Skulls","Arcana Prestige"]},"sets":[{"tribe":"Club","set":"On the Water","cards":[1,2,3,4,5,6,7,8,9,10,11,12,13]},{"tribe":"Club","set":"No Crying in the Casino","cards":[14,15,16,17,18,19,20,21,22,23,24,25]},{"tribe":"Club","set":"The Clubhouse","cards":[26,27,28,29,30,31,32,33,34,35]},{"tribe":"Club","set":"Away Games","cards":[36,37,38,39,40]},{"tribe":"Club","set":"Day Dreaming","cards":[41,42,43,44,45,46,47]},{"tribe":"Club","set":"Dog Food","cards":[48,49,50,51,52,53,54,55,56,57,58]},{"tribe":"Club","set":"Prestige","cards":[59,60,61,62]},{"tribe":"Mutant","set":"Chemistry Club","cards":[63,64,65,66,67,68]},{"tribe":"Mutant","set":"The Sewer","cards":[69,70,71,72,73,74,75,76,77,78,79,80]},{"tribe":"Mutant","set":"Mutated Prestige","cards":[81,82,83,84]},{"tribe":"Cosmic","set":"Cosmic Curtis","cards":[85,86,87,88,89,90]},{"tribe":"Cosmic","set":"Phone Home","cards":[91,92,93,94,95,96,97]},{"tribe":"Cosmic","set":"Cosmic Prestige","cards":[98,99,100]},{"tribe":"Arcana","set":"Tarot","cards":[101,102,103,104,105,106,107,108]},{"tribe":"Arcana","set":"The Skulls","cards":[109,110,111,112,113,114,115,116,117]},{"tribe":"Arcana","set":"Arcana Prestige","cards":[118,119,120]}],"cards":[{"number":1,"name":"Bottle Rocket","rarity":"Common","tribe":"Club","set":"On the Water"},{"number":2,"name":"Sea Dog","rarity":"Common","tribe":"Club","set":"On the Water"},{"number":3,"name":"The Deckhand","rarity":"Common","tribe":"Club","set":"On the Water"},{"number":4,"name":"The Boathouse","rarity":"Common","tribe":"Club","set":"On the Water"},{"number":5,"name":"Dead Calm","rarity":"Uncommon","tribe":"Club","set":"On the Water"},{"number":6,"name":"The Dive","rarity":"Uncommon","tribe":"Club","set":"On the Water"},{"number":7,"name":"Clubhouse Wake","rarity":"Uncommon","tribe":"Club","set":"On the Water"},{"number":8,"name":"Lofi on the Dock","rarity":"Prestige","tribe":"Club","set":"On the Water"},{"number":9,"name":"The Skipper","rarity":"Rare","tribe":"Club","set":"On the Water"},{"number":10,"name":"Off Duty","rarity":"Common","tribe":"Club","set":"On the Water"},{"number":11,"name":"The Drowned Captain","rarity":"Common","tribe":"Club","set":"On the Water"},{"number":12,"name":"Good Seats","rarity":"Common","tribe":"Club","set":"On the Water"},{"number":13,"name":"The Blue Voyage","rarity":"Uncommon","tribe":"Club","set":"On the Water"},{"number":14,"name":"Members Only","rarity":"Common","tribe":"Club","set":"No Crying in the Casino"},{"number":15,"name":"The Lighter","rarity":"Common","tribe":"Club","set":"No Crying in the Casino"},{"number":16,"name":"Havana Gold","rarity":"Common","tribe":"Club","set":"No Crying in the Casino"},{"number":17,"name":"The Ante","rarity":"Common","tribe":"Club","set":"No Crying in the Casino"},{"number":18,"name":"Neon Bronco","rarity":"Common","tribe":"Club","set":"No Crying in the Casino"},{"number":19,"name":"The Captain","rarity":"Uncommon","tribe":"Club","set":"No Crying in the Casino"},{"number":20,"name":"The Parlor Regular","rarity":"Uncommon","tribe":"Club","set":"No Crying in the Casino"},{"number":21,"name":"Hot Table","rarity":"Prestige","tribe":"Club","set":"No Crying in the Casino"},{"number":22,"name":"Last Call","rarity":"Prestige","tribe":"Club","set":"No Crying in the Casino"},{"number":23,"name":"Face Card","rarity":"Common","tribe":"Club","set":"No Crying in the Casino"},{"number":24,"name":"Four of a Kind","rarity":"Common","tribe":"Club","set":"No Crying in the Casino"},{"number":25,"name":"The Getaway","rarity":"Common","tribe":"Club","set":"No Crying in the Casino"},{"number":26,"name":"Bored Stiff","rarity":"Common","tribe":"Club","set":"The Clubhouse"},{"number":27,"name":"Couch Lock","rarity":"Common","tribe":"Club","set":"The Clubhouse"},{"number":28,"name":"The Back Room","rarity":"Common","tribe":"Club","set":"The Clubhouse"},{"number":29,"name":"The Arcade","rarity":"Uncommon","tribe":"Club","set":"The Clubhouse"},{"number":30,"name":"Book of Apes","rarity":"Uncommon","tribe":"Club","set":"The Clubhouse"},{"number":31,"name":"Golden Stacks","rarity":"Uncommon","tribe":"Club","set":"The Clubhouse"},{"number":32,"name":"The Game Room","rarity":"Common","tribe":"Club","set":"The Clubhouse"},{"number":33,"name":"Swinging Doors","rarity":"Prestige","tribe":"Club","set":"The Clubhouse"},{"number":34,"name":"Bored at the Door","rarity":"Rare","tribe":"Club","set":"The Clubhouse"},{"number":35,"name":"Basement Anchor","rarity":"Common","tribe":"Club","set":"The Clubhouse"},{"number":36,"name":"The Shortcut","rarity":"Uncommon","tribe":"Club","set":"Away Games"},{"number":37,"name":"Away Game","rarity":"Uncommon","tribe":"Club","set":"Away Games"},{"number":38,"name":"Bored & Loathing","rarity":"Rare","tribe":"Club","set":"Away Games"},{"number":39,"name":"Cold Summit","rarity":"Common","tribe":"Club","set":"Away Games"},{"number":40,"name":"The Moai","rarity":"Uncommon","tribe":"Club","set":"Away Games"},{"number":41,"name":"Late Nightcap","rarity":"Rare","tribe":"Club","set":"Day Dreaming"},{"number":42,"name":"Lion Dance","rarity":"Rare","tribe":"Club","set":"Day Dreaming"},{"number":43,"name":"Sick Day","rarity":"Common","tribe":"Club","set":"Day Dreaming"},{"number":44,"name":"Bored Monday","rarity":"Common","tribe":"Club","set":"Day Dreaming"},{"number":45,"name":"Dead to the World","rarity":"Uncommon","tribe":"Club","set":"Day Dreaming"},{"number":46,"name":"Field Day","rarity":"Common","tribe":"Club","set":"Day Dreaming"},{"number":47,"name":"The Fridge","rarity":"Uncommon","tribe":"Club","set":"Day Dreaming"},{"number":48,"name":"Detention","rarity":"Common","tribe":"Club","set":"Dog Food"},{"number":49,"name":"Good Boy Gary","rarity":"Legendary","tribe":"Club","set":"Dog Food"},{"number":50,"name":"The Morning After","rarity":"Common","tribe":"Club","set":"Dog Food"},{"number":51,"name":"Happy Holidays","rarity":"Uncommon","tribe":"Club","set":"Dog Food"},{"number":52,"name":"The Long Weekend","rarity":"Uncommon","tribe":"Club","set":"Dog Food"},{"number":53,"name":"Sofa Shark","rarity":"Rare","tribe":"Club","set":"Dog Food"},{"number":54,"name":"Never Alone","rarity":"Common","tribe":"Club","set":"Dog Food"},{"number":55,"name":"Shelf Life","rarity":"Common","tribe":"Club","set":"Dog Food"},{"number":56,"name":"A Cult Classic","rarity":"Common","tribe":"Club","set":"Dog Food"},{"number":57,"name":"Packed in Oil","rarity":"Common","tribe":"Club","set":"Dog Food"},{"number":58,"name":"Extra Salty","rarity":"Common","tribe":"Club","set":"Dog Food"},{"number":59,"name":"Fresh Cut","rarity":"Prestige","tribe":"Club","set":"Prestige"},{"number":60,"name":"Elevator Ride","rarity":"Prestige","tribe":"Club","set":"Prestige"},{"number":61,"name":"The Lowrider","rarity":"Prestige","tribe":"Club","set":"Prestige"},{"number":62,"name":"The Founder","rarity":"Legendary","tribe":"Club","set":"Prestige"},{"number":63,"name":"Serum I","rarity":"Common","tribe":"Mutant","set":"Chemistry Club"},{"number":64,"name":"Serum II","rarity":"Common","tribe":"Mutant","set":"Chemistry Club"},{"number":65,"name":"Serum Molt","rarity":"Common","tribe":"Mutant","set":"Chemistry Club"},{"number":66,"name":"Serum III","rarity":"Uncommon","tribe":"Mutant","set":"Chemistry Club"},{"number":67,"name":"The Mercury Ape","rarity":"Rare","tribe":"Mutant","set":"Chemistry Club"},{"number":68,"name":"The Gurgle","rarity":"Common","tribe":"Mutant","set":"Chemistry Club"},{"number":69,"name":"The Flush","rarity":"Common","tribe":"Mutant","set":"The Sewer"},{"number":70,"name":"The Golden Plunger","rarity":"Common","tribe":"Mutant","set":"The Sewer"},{"number":71,"name":"The Split","rarity":"Uncommon","tribe":"Mutant","set":"The Sewer"},{"number":72,"name":"Skeleton Key","rarity":"Prestige","tribe":"Mutant","set":"The Sewer"},{"number":73,"name":"The Spare","rarity":"Common","tribe":"Mutant","set":"The Sewer"},{"number":74,"name":"The Throne","rarity":"Common","tribe":"Mutant","set":"The Sewer"},{"number":75,"name":"The Lifesaver","rarity":"Common","tribe":"Mutant","set":"The Sewer"},{"number":76,"name":"The DDcow","rarity":"Rare","tribe":"Mutant","set":"The Sewer"},{"number":77,"name":"Half-Mutated","rarity":"Uncommon","tribe":"Mutant","set":"The Sewer"},{"number":78,"name":"The Divers","rarity":"Uncommon","tribe":"Mutant","set":"The Sewer"},{"number":79,"name":"The Outbreak","rarity":"Uncommon","tribe":"Mutant","set":"The Sewer"},{"number":80,"name":"The Runner","rarity":"Uncommon","tribe":"Mutant","set":"The Sewer"},{"number":81,"name":"Sewer Hoard","rarity":"Prestige","tribe":"Mutant","set":"Mutated Prestige"},{"number":82,"name":"Neon Cowboy","rarity":"Prestige","tribe":"Mutant","set":"Mutated Prestige"},{"number":83,"name":"The Portal","rarity":"Legendary","tribe":"Mutant","set":"Mutated Prestige"},{"number":84,"name":"The Box","rarity":"Legendary","tribe":"Mutant","set":"Mutated Prestige"},{"number":85,"name":"The Pulsar","rarity":"Rare","tribe":"Cosmic","set":"Cosmic Curtis"},{"number":86,"name":"The Convergence","rarity":"Rare","tribe":"Cosmic","set":"Cosmic Curtis"},{"number":87,"name":"The Nova","rarity":"Rare","tribe":"Cosmic","set":"Cosmic Curtis"},{"number":88,"name":"The Zenith","rarity":"Rare","tribe":"Cosmic","set":"Cosmic Curtis"},{"number":89,"name":"The Eternal","rarity":"Rare","tribe":"Cosmic","set":"Cosmic Curtis"},{"number":90,"name":"The Oracle","rarity":"Legendary","tribe":"Cosmic","set":"Cosmic Curtis"},{"number":91,"name":"The Abduction","rarity":"Common","tribe":"Cosmic","set":"Phone Home"},{"number":92,"name":"The Signal","rarity":"Uncommon","tribe":"Cosmic","set":"Phone Home"},{"number":93,"name":"I Want To Believe","rarity":"Uncommon","tribe":"Cosmic","set":"Phone Home"},{"number":94,"name":"The Hum","rarity":"Common","tribe":"Cosmic","set":"Phone Home"},{"number":95,"name":"Moon Dust","rarity":"Common","tribe":"Cosmic","set":"Phone Home"},{"number":96,"name":"The Watcher","rarity":"Common","tribe":"Cosmic","set":"Phone Home"},{"number":97,"name":"Static","rarity":"Common","tribe":"Cosmic","set":"Phone Home"},{"number":98,"name":"Signal Rift","rarity":"Prestige","tribe":"Cosmic","set":"Cosmic Prestige"},{"number":99,"name":"Hall of Mirrors","rarity":"Prestige","tribe":"Cosmic","set":"Cosmic Prestige"},{"number":100,"name":"Black Flag","rarity":"Legendary","tribe":"Cosmic","set":"Cosmic Prestige"},{"number":101,"name":"The Degen","rarity":"Common","tribe":"Arcana","set":"Tarot"},{"number":102,"name":"The Fisherman","rarity":"Common","tribe":"Arcana","set":"Tarot"},{"number":103,"name":"The Sardines","rarity":"Common","tribe":"Arcana","set":"Tarot"},{"number":104,"name":"The Full Moon","rarity":"Common","tribe":"Arcana","set":"Tarot"},{"number":105,"name":"The Fool","rarity":"Common","tribe":"Arcana","set":"Tarot"},{"number":106,"name":"The Prophet","rarity":"Legendary","tribe":"Arcana","set":"Tarot"},{"number":107,"name":"The Cult","rarity":"Common","tribe":"Arcana","set":"Tarot"},{"number":108,"name":"The Swamp","rarity":"Common","tribe":"Arcana","set":"Tarot"},{"number":109,"name":"Fossil Record","rarity":"Common","tribe":"Arcana","set":"The Skulls"},{"number":110,"name":"Still Here","rarity":"Common","tribe":"Arcana","set":"The Skulls"},{"number":111,"name":"Stone Mosaic","rarity":"Uncommon","tribe":"Arcana","set":"The Skulls"},{"number":112,"name":"Swamp Foxfire","rarity":"Uncommon","tribe":"Arcana","set":"The Skulls"},{"number":113,"name":"Heat Signature","rarity":"Uncommon","tribe":"Arcana","set":"The Skulls"},{"number":114,"name":"The Tonic","rarity":"Uncommon","tribe":"Arcana","set":"The Skulls"},{"number":115,"name":"The Beacon","rarity":"Uncommon","tribe":"Arcana","set":"The Skulls"},{"number":116,"name":"Last Meal","rarity":"Uncommon","tribe":"Arcana","set":"The Skulls"},{"number":117,"name":"The Drip","rarity":"Common","tribe":"Arcana","set":"The Skulls"},{"number":118,"name":"Sun Dog","rarity":"Prestige","tribe":"Arcana","set":"Arcana Prestige"},{"number":119,"name":"Blissfully Unbothered","rarity":"Prestige","tribe":"Arcana","set":"Arcana Prestige"},{"number":120,"name":"The High Priest","rarity":"Legendary","tribe":"Arcana","set":"Arcana Prestige"}]};
+const API = "https://api.opensea.io/api/v2";
+const KEY = "67e858c342374cad9313259d8321616e";
+const SLUG = "mudwater-cards";
+const TRIBE_COLOR = { Club: "var(--club)", Mutant: "var(--mutant)", Cosmic: "var(--cosmic)", Arcana: "var(--arcana)" };
+const CARD = Object.fromEntries(DATA.cards.map(c => [c.number, c]));
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const sol = v => v == null ? "—" : v.toFixed(v < 1 ? 4 : 2) + " SOL";
+
+const state = { A: null, B: null, nameA: "You", nameB: "Them", filter: "all", selected: new Set(), showAll: { get: false, give: false } };
+const prices = new Map();   // "num|finish" -> number | null
+const pending = new Map();
+
+// ---------- Finish handling ----------
+function finishClass(f) { return f === "Base" ? "base" : f === "Foil" ? "foil" : "ser"; }
+function finishLabel(f) { return f === "Base" || f === "Foil" ? f : "Cracked Ice"; }
+function finishChip(f) { return `<span class="fin ${finishClass(f)}" title="${esc(f)}">${esc(finishLabel(f))}</span>`; }
+const FINISH_ORDER = f => f === "Base" ? 0 : f === "Foil" ? 1 : 2;
+
+// ---------- OpenSea ----------
+async function os(path) {
+  for (let i = 0; i < 5; i++) {
+    let r;
+    try { r = await fetch(API + path, { headers: { accept: "application/json", "x-api-key": KEY } }); }
+    catch (e) { await sleep(600 * (i + 1)); continue; }
+    if (r.status === 429) { await sleep(900 * (i + 1)); continue; }
+    if (r.status === 400 || r.status === 404) return null;
+    if (!r.ok) throw new Error("OpenSea answered " + r.status + ". Try again in a minute.");
+    return r.json();
+  }
+  throw new Error("OpenSea is rate-limiting requests. Wait a minute and try again.");
+}
+
+async function loadWallet(addr, label) {
+  const items = []; let next = null, page = 0;
+  do {
+    const j = await os(`/chain/solana/account/${addr}/nfts?collection=${SLUG}&limit=200` + (next ? "&next=" + encodeURIComponent(next) : ""));
+    if (!j) throw new Error(`Couldn't read ${label}'s wallet. Check the address.`);
+    items.push(...(j.nfts || []));
+    next = j.next; page++;
+    setStatus(`Reading ${label}'s binder… ${items.length} cards`);
+  } while (next && page < 60);
+  const inv = { addr, cards: new Map(), total: items.length, images: new Map() };
+  for (const n of items) {
+    const t = Object.fromEntries((n.traits || []).map(a => [a.trait_type, a.value]));
+    const num = parseInt(t["Card Number"], 10);
+    if (!CARD[num]) continue;
+    const f = t.Finish || "Base";
+    if (!inv.cards.has(num)) inv.cards.set(num, {});
+    const slot = inv.cards.get(num); slot[f] = (slot[f] || 0) + 1;
+    const img = n.display_image_url || n.image_url;
+    if (img && (!inv.images.has(num) || f === "Base")) inv.images.set(num, img);
+  }
+  return inv;
+}
+
+function queuePrice(num, finish) {
+  const k = num + "|" + finish;
+  if (prices.has(k) || pending.has(k)) return;
+  pending.set(k, true);
+  priceQueue.push([num, finish]);
+  pumpPrices();
+}
+const priceQueue = []; let active = 0;
+async function pumpPrices() {
+  while (active < 3 && priceQueue.length) {
+    const [num, finish] = priceQueue.shift(); active++;
+    (async () => {
+      const k = num + "|" + finish;
+      try {
+        const traits = encodeURIComponent(JSON.stringify([{ traitType: "Card Number", value: String(num) }, { traitType: "Finish", value: finish }]));
+        const j = await os(`/listings/collection/${SLUG}/best?limit=1&traits=${traits}`);
+        const l = j && j.listings && j.listings[0];
+        prices.set(k, l ? Number(l.price.current.value) / Math.pow(10, l.price.current.decimals || 9) : null);
+      } catch (e) { prices.set(k, null); }
+      pending.delete(k); active--;
+      paintPrice(k); updateTray(); pumpPrices();
+    })();
+  }
+}
+function paintPrice(k) {
+  document.querySelectorAll(`[data-price="${CSS.escape(k)}"]`).forEach(el => {
+    const v = prices.get(k);
+    el.textContent = v == null ? "no listing" : sol(v);
+    el.classList.toggle("na", v == null);
+  });
+}
+
+// ---------- Inventory helpers ----------
+const owns = (inv, num) => !!inv && inv.cards.has(num);
+const ownsFinish = (inv, num, f) => !!inv && !!(inv.cards.get(num) || {})[f];
+function spares(inv) {
+  const out = [];
+  for (const [num, fins] of inv.cards) for (const [f, n] of Object.entries(fins)) if (n > 1) out.push({ num, finish: f, spare: n - 1 });
+  return out.sort((a, b) => a.num - b.num || FINISH_ORDER(a.finish) - FINISH_ORDER(b.finish));
+}
+function counts(inv) {
+  let spare = 0, foil = 0, ser = 0;
+  for (const fins of inv.cards.values()) for (const [f, n] of Object.entries(fins)) {
+    if (n > 1) spare += n - 1;
+    if (f === "Foil") foil += n; else if (f !== "Base") ser += n;
+  }
+  return { designs: inv.cards.size, total: inv.total, spare, foil, ser };
+}
+function imageFor(num) { return (state.A && state.A.images.get(num)) || (state.B && state.B.images.get(num)) || null; }
+
+// Lists of what one side can send the other
+function offers(from, to) {
+  const s = spares(from);
+  return {
+    gaps: s.filter(x => !owns(to, x.num)),
+    upgrades: s.filter(x => x.finish !== "Base" && owns(to, x.num) && !ownsFinish(to, x.num, x.finish)),
+    rest: s.filter(x => owns(to, x.num) && (x.finish === "Base" || ownsFinish(to, x.num, x.finish)))
+  };
+}
+
+// ---------- Rendering: summary ----------
+function renderSummary() {
+  const box = $("#summary");
+  const one = (inv, cls, name) => {
+    const c = counts(inv), pct = Math.round(c.designs / 120 * 100);
+    return `<div class="who ${cls}">
+      <h2>${esc(name)} <span class="addr">${esc(inv.addr.slice(0, 4))}…${esc(inv.addr.slice(-4))}</span></h2>
+      <div class="stats">
+        <div class="stat"><b>${c.designs}<small style="font-size:13px;color:var(--muted)">/120</small></b><span>designs</span></div>
+        <div class="stat"><b>${120 - c.designs}</b><span>missing</span></div>
+        <div class="stat"><b>${c.total}</b><span>cards</span></div>
+        <div class="stat"><b>${c.spare}</b><span>spare copies</span></div>
+        <div class="stat"><b>${c.foil}</b><span>foils</span></div>
+        ${c.ser ? `<div class="stat"><b>${c.ser}</b><span>cracked ice</span></div>` : ""}
+      </div>
+      <div class="bar" aria-label="${pct}% of the set"><i style="width:${pct}%;background:var(--${cls})"></i></div>
+    </div>`;
+  };
+  box.innerHTML = one(state.A, "you", state.nameA) + one(state.B, "them", state.nameB);
+  box.hidden = false;
+}
+
+// ---------- Rendering: trade board ----------
+function itemRow(x, dir) {
+  const c = CARD[x.num], k = x.num + "|" + x.finish, id = dir + ":" + k;
+  const img = imageFor(x.num);
+  const on = state.selected.has(id);
+  const v = prices.get(k);
+  return `<label class="item${on ? " on" : ""}">
+    <input type="checkbox" data-sel="${esc(id)}"${on ? " checked" : ""}>
+    ${img ? `<img class="thumb" src="${esc(img)}" alt="" loading="lazy">` : `<span class="thumb ph">#${x.num}</span>`}
+    <span class="meta"><span class="nm">#${x.num} ${esc(c.name)}</span>
+      <span class="sub">${finishChip(x.finish)}<span class="rar ${c.rarity}">${c.rarity}</span><span>${esc(c.set)}</span>${x.spare > 1 ? `<span>${x.spare} spare</span>` : ""}</span></span>
+    <span class="price${v === null ? " na" : ""}" data-price="${esc(k)}">${prices.has(k) ? (v == null ? "no listing" : sol(v)) : "…"}</span>
+  </label>`;
+}
+function missingList(inv, other) {
+  const miss = DATA.cards.filter(c => !owns(inv, c.number));
+  if (!miss.length) return "";
+  const shown = miss.slice(0, 12).map(c => `#${c.number} ${esc(c.name)}`).join(", ");
+  return `<b>${miss.length}</b> missing: ${shown}${miss.length > 12 ? "…" : ""}`;
+}
+function renderLane(el, dir) {
+  const fromName = dir === "get" ? state.nameB : state.nameA;
+  const toName = dir === "get" ? state.nameA : state.nameB;
+  const from = dir === "get" ? state.B : state.A, to = dir === "get" ? state.A : state.B;
+  const o = offers(from, to);
+  [...o.gaps, ...o.upgrades].forEach(x => queuePrice(x.num, x.finish));
+  const dot = dir === "get" ? "them" : "you";
+  const group = (title, list, empty) => `<div class="group"><h4><span>${title}</span><span>${list.length}</span></h4>${list.length ? list.map(x => itemRow(x, dir)).join("") : `<p class="empty">${empty}</p>`}</div>`;
+  const restShown = state.showAll[dir] ? o.rest : [];
+  el.innerHTML = `<h3><span class="dot ${dot}"></span>${esc(fromName)} → ${esc(toName)}</h3>
+    ${group("Fills a gap", o.gaps, `None of ${esc(fromName)}'s spares are cards ${esc(toName)} is missing. ${missingList(to, from)}`)}
+    ${group("Foil upgrade", o.upgrades, `No spare foils for cards ${esc(toName)} only has in Base.`)}
+    <div class="group"><h4><span>Other spares, to balance value</span><span>${o.rest.length}</span></h4>
+      ${restShown.map(x => itemRow(x, dir)).join("")}
+      ${o.rest.length ? `<button type="button" class="more" data-more="${dir}">${state.showAll[dir] ? "Hide other spares" : `Show ${o.rest.length} other spares`}</button>` : `<p class="empty">No other spare copies.</p>`}
+    </div>`;
+}
+function renderTrade() {
+  renderLane($("#laneGet"), "get");
+  renderLane($("#laneGive"), "give");
+  updateTray();
+}
+
+// ---------- Balance tray ----------
+function selectedSide(dir) {
+  return [...state.selected].filter(id => id.startsWith(dir + ":")).map(id => { const [num, finish] = id.slice(dir.length + 1).split("|"); return { num: +num, finish }; });
+}
+function total(list) {
+  let sum = 0, unknown = 0, loading = 0;
+  for (const x of list) { const k = x.num + "|" + x.finish; if (!prices.has(k)) loading++; else if (prices.get(k) == null) unknown++; else sum += prices.get(k); }
+  return { sum, unknown, loading };
+}
+function updateTray() {
+  const tray = $("#tray");
+  if (!state.A || !state.B) { tray.hidden = true; return; }
+  tray.hidden = false;
+  const give = selectedSide("give"), get = selectedSide("get");
+  const g = total(give), r = total(get);
+  const note = t => (t.loading ? ` · pricing ${t.loading}` : "") + (t.unknown ? ` · ${t.unknown} unlisted` : "");
+  $("#trayGive").innerHTML = `${esc(state.nameA)} gives ${give.length} card${give.length === 1 ? "" : "s"}: <b>${sol(g.sum)}</b>${note(g)}`;
+  $("#trayGet").innerHTML = `${esc(state.nameB)} gives ${get.length} card${get.length === 1 ? "" : "s"}: <b>${sol(r.sum)}</b>${note(r)}`;
+  const both = g.sum + r.sum;
+  $("#mA").style.width = (both ? g.sum / both * 100 : 50) + "%";
+  $("#mB").style.width = (both ? r.sum / both * 100 : 50) + "%";
+  const v = $("#verdict");
+  if (!give.length && !get.length) { v.className = "verdict"; v.textContent = "Tick cards on both sides to build an offer. Prices are the current OpenSea floor for that card and finish."; return; }
+  const diff = g.sum - r.sum, gap = Math.abs(diff), rel = both ? gap / Math.max(g.sum, r.sum) : 0;
+  if (rel <= 0.1) { v.className = "verdict even"; v.textContent = `Even at floor: within ${sol(gap)}.`; }
+  else { v.className = "verdict off"; v.textContent = `${diff > 0 ? state.nameA : state.nameB} is giving ${sol(gap)} more at floor. Add a spare from the other side, or settle the difference in SOL.`; }
+}
+async function copyOffer() {
+  const line = x => `#${x.num} ${CARD[x.num].name} (${finishLabel(x.finish)})` + (prices.get(x.num + "|" + x.finish) != null ? ` ~${sol(prices.get(x.num + "|" + x.finish))}` : "");
+  const give = selectedSide("give"), get = selectedSide("get");
+  if (!give.length && !get.length) { flash("#copyOffer", "Tick some cards first"); return; }
+  const text = `Mudwater trade offer\n\n${state.nameA} sends:\n${give.map(line).join("\n") || "(nothing)"}\n\n${state.nameB} sends:\n${get.map(line).join("\n") || "(nothing)"}\n\nFloor value: ${sol(total(give).sum)} for ${sol(total(get).sum)}\n${shareUrl()}`;
+  await copyText(text, "#copyOffer", "Offer copied");
+}
+
+// ---------- Binder ----------
+const FILTERS = [
+  ["all", "All 120"],
+  ["needYou", "You're missing"],
+  ["needThem", "They're missing"],
+  ["canGet", "You can get from them"],
+  ["canGive", "You can give them"]
+];
+function renderFilters() {
+  const hasBoth = state.A && state.B;
+  $("#filters").innerHTML = FILTERS.filter(([k]) => k === "all" || hasBoth)
+    .map(([k, label]) => `<button type="button" class="chip" data-filter="${k}" aria-pressed="${state.filter === k}">${label}</button>`).join("");
+}
+function hasSpare(inv, num) { const f = inv && inv.cards.get(num); return !!f && Object.values(f).some(n => n > 1); }
+function passes(num) {
+  const A = state.A, B = state.B;
+  switch (state.filter) {
+    case "needYou": return !owns(A, num);
+    case "needThem": return !owns(B, num);
+    case "canGet": return !owns(A, num) && hasSpare(B, num);
+    case "canGive": return !owns(B, num) && hasSpare(A, num);
+    default: return true;
+  }
+}
+function holdings(inv, num, who, cls) {
+  const f = inv.cards.get(num);
+  if (!f) return `<div><span class="dot ${cls}"></span><span class="miss">missing</span></div>`;
+  const chips = Object.entries(f).sort((a, b) => FINISH_ORDER(a[0]) - FINISH_ORDER(b[0]))
+    .map(([fin, n]) => `<span class="cnt ${finishClass(fin)}" title="${esc(fin)}">${fin === "Base" ? "B" : fin === "Foil" ? "F" : "CI"}×${n}</span>`).join("");
+  return `<div><span class="dot ${cls}"></span>${chips}</div>`;
+}
+function renderBinder() {
+  const A = state.A, B = state.B, both = A && B;
+  let html = "";
+  for (const tribe of Object.keys(DATA.tribes)) {
+    const sets = DATA.sets.filter(s => s.tribe === tribe);
+    const nCards = sets.reduce((t, s) => t + s.cards.length, 0);
+    let setHtml = "";
+    for (const s of sets) {
+      const nums = s.cards.filter(passes);
+      if (!nums.length) continue;
+      const prog = (inv, cls, name) => {
+        const have = s.cards.filter(n => owns(inv, n)).length, done = have === s.cards.length;
+        return `<div><span><span class="dot ${cls}"></span> ${esc(name)}</span><span class="bar"><i style="width:${have / s.cards.length * 100}%;background:var(--${cls})"></i></span><span class="num ${done ? "done" : ""}">${have}/${s.cards.length}${done ? " ✓" : ""}</span></div>`;
+      };
+      const tiles = nums.map(n => {
+        const c = CARD[n], img = imageFor(n);
+        let flag = "";
+        if (both && !owns(A, n) && hasSpare(B, n)) flag = "flag-you";
+        else if (both && !owns(B, n) && hasSpare(A, n)) flag = "flag-them";
+        return `<div class="tile ${flag}">
+          <div class="art">${img ? `<img src="${esc(img)}" alt="${esc(c.name)}" loading="lazy">` : `<span class="ph">${n}</span>`}<span class="no">#${n}</span></div>
+          <div class="tn" title="${esc(c.name)}">${esc(c.name)}</div>
+          <div class="sub" style="font-size:11px"><span class="rar ${c.rarity}">${c.rarity}</span></div>
+          ${both ? `<div class="own">${holdings(A, n, state.nameA, "you")}${holdings(B, n, state.nameB, "them")}</div>` : ""}
+        </div>`;
+      }).join("");
+      setHtml += `<article class="set">
+        <div class="set-head"><h4>${esc(s.set)}<span class="rng">#${s.cards[0]}–${s.cards[s.cards.length - 1]}</span></h4>
+          ${both ? `<div class="prog">${prog(A, "you", state.nameA)}${prog(B, "them", state.nameB)}</div>` : `<span class="num" style="font-size:12px;color:var(--muted)">${s.cards.length} cards</span>`}
+        </div>
+        <div class="grid">${tiles}</div>
+      </article>`;
+    }
+    if (setHtml) html += `<section class="tribe"><h3 style="color:${TRIBE_COLOR[tribe]}">${tribe} <small>${nCards} cards · ${sets.length} sets</small></h3>${setHtml}</section>`;
+  }
+  $("#tribes").innerHTML = html || `<p class="empty">No cards match this filter.</p>`;
+  renderFilters();
+}
+
+// ---------- Tabs ----------
+function showTab(name) {
+  const trade = name === "trade";
+  $("#tab-trade").setAttribute("aria-selected", trade);
+  $("#tab-binder").setAttribute("aria-selected", !trade);
+  $("#trade").hidden = !trade;
+  $("#binder").hidden = trade;
+}
+
+// ---------- Share / copy ----------
+function shareUrl() {
+  const u = new URL(location.href.split("?")[0].split("#")[0]);
+  if (state.A) u.searchParams.set("a", state.A.addr);
+  if (state.B) u.searchParams.set("b", state.B.addr);
+  if (state.nameA && state.nameA !== "You") u.searchParams.set("an", state.nameA);
+  if (state.nameB && state.nameB !== "Them") u.searchParams.set("bn", state.nameB);
+  return u.toString();
+}
+async function copyText(text, btnSel, done) {
+  try { await navigator.clipboard.writeText(text); flash(btnSel, done); }
+  catch (e) {
+    const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); flash(btnSel, done); } catch (e2) { flash(btnSel, "Copy failed"); }
+    ta.remove();
+  }
+}
+function flash(sel, msg) { const b = $(sel), t = b.textContent; b.textContent = msg; setTimeout(() => b.textContent = t, 1600); }
+function setStatus(msg, err) { const s = $("#status"); s.textContent = msg; s.classList.toggle("err", !!err); }
+
+// ---------- Compare ----------
+const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+async function compare() {
+  const a = $("#addrA").value.trim(), b = $("#addrB").value.trim();
+  state.nameA = $("#nameA").value.trim() || "You";
+  state.nameB = $("#nameB").value.trim() || "Them";
+  if (!B58.test(a) || !B58.test(b)) { setStatus("Both wallets need a valid Solana address.", true); return; }
+  if (a === b) { setStatus("Those are the same wallet. Enter two different ones.", true); return; }
+  const go = $("#go"); go.disabled = true;
+  try {
+    state.A = await loadWallet(a, state.nameA);
+    state.B = await loadWallet(b, state.nameB);
+    state.selected.clear(); state.filter = "all";
+    history.replaceState(null, "", shareUrl());
+    renderSummary(); renderTrade(); renderBinder();
+    $("#tabs").hidden = false; $("#share").hidden = false; showTab("trade");
+    const og = offers(state.B, state.A).gaps.length, ov = offers(state.A, state.B).gaps.length;
+    setStatus(`${state.nameB} has ${og} spare${og === 1 ? " that fills" : "s that fill"} ${state.nameA}'s gaps. ${state.nameA} has ${ov} that fill${ov === 1 ? "s" : ""} ${state.nameB}'s.`);
+  } catch (e) {
+    setStatus(e.message || "Something went wrong reading the wallets.", true);
+  } finally { go.disabled = false; }
+}
+
+// ---------- Events ----------
+$("#bench").addEventListener("submit", e => { e.preventDefault(); compare(); });
+$("#share").addEventListener("click", () => copyText(shareUrl(), "#share", "Link copied"));
+$("#copyOffer").addEventListener("click", copyOffer);
+$("#tab-trade").addEventListener("click", () => showTab("trade"));
+$("#tab-binder").addEventListener("click", () => showTab("binder"));
+document.addEventListener("change", e => {
+  const id = e.target.dataset && e.target.dataset.sel; if (!id) return;
+  if (e.target.checked) { state.selected.add(id); const [num, finish] = id.split(":")[1].split("|"); queuePrice(+num, finish); }
+  else state.selected.delete(id);
+  e.target.closest(".item").classList.toggle("on", e.target.checked);
+  updateTray();
+});
+document.addEventListener("click", e => {
+  const m = e.target.closest("[data-more]"); if (m) { state.showAll[m.dataset.more] = !state.showAll[m.dataset.more]; renderTrade(); return; }
+  const f = e.target.closest("[data-filter]"); if (f) { state.filter = f.dataset.filter; renderBinder(); }
+});
+
+// ---------- Boot ----------
+(function boot() {
+  const q = new URLSearchParams(location.search);
+  if (q.get("a")) $("#addrA").value = q.get("a");
+  if (q.get("b")) $("#addrB").value = q.get("b");
+  if (q.get("an")) $("#nameA").value = q.get("an");
+  if (q.get("bn")) $("#nameB").value = q.get("bn");
+  renderBinder();
+  $("#binder").hidden = false;
+  if (q.get("a") && q.get("b")) compare();
+})();
+</script>
+</body>
+</html>
