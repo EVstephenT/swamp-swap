@@ -96,16 +96,17 @@ form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; alig
 .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
 .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; color: var(--muted); font-weight: 600; margin-bottom: -1px; }
 .tabs button[aria-selected="true"] { color: var(--fg); border-color: var(--mutant); }
-.tabs .spacer { flex: 1; }
 .tabs button { white-space: nowrap; }
+.tray-ctrl { display: flex; align-items: center; gap: 14px; }
+.vswitch { display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 6px 0; color: var(--muted); font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; }
 .vswitch .short { display: none; }
-.tabs button.vswitch { display: flex; align-items: center; gap: 8px; border-bottom-color: transparent; font-weight: 500; font-size: 13px; padding-right: 2px; }
 .vswitch .track { width: 32px; height: 18px; border-radius: 9px; background: var(--line); position: relative; transition: background .15s; flex: none; }
 .vswitch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
 .vswitch[aria-checked="true"] { color: var(--fg); }
 .vswitch[aria-checked="true"] .track { background: var(--mutant); }
 .vswitch[aria-checked="true"] .track::after { transform: translateX(14px); background: #0d1a07; }
 body:not(.values) .price, body:not(.values) .meter, body:not(.values) .verdict { display: none; }
+body:not(.values) .scale-row { justify-content: flex-start; gap: 6px 28px; }
 
 /* Trade board */
 .board { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
@@ -184,11 +185,13 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
 }
 @media (max-width: 460px) {
   .slot-row { grid-template-columns: 1fr; }
-  .tabs { gap: 2px; }
-  .tabs button { padding-left: 8px; padding-right: 8px; }
-  .tabs button.vswitch { gap: 6px; padding-right: 0; }
   .vswitch .long { display: none; } .vswitch .short { display: inline; }
-  .tray { grid-template-columns: 1fr; gap: 8px; padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+  .tray-ctrl { display: contents; }
+  .tray-toggle { grid-column: 1; grid-row: 1; min-width: 0; }
+  .vswitch { grid-column: 2; grid-row: 1; }
+  .scale { grid-column: 1 / -1; }
+  #copyOffer { grid-column: 1 / -1; }
+  .tray { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
   .tray-toggle { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; background: none; border: 0; padding: 4px 0; color: var(--fg); font: inherit; font-size: 13px; text-align: left; }
   .tray-toggle #trayMini { font-family: var(--mono); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tray-toggle .caret { color: var(--muted); transition: transform .15s; }
@@ -236,8 +239,6 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
   <div class="tabs" role="tablist" id="tabs" hidden>
     <button role="tab" id="tab-trade" aria-selected="true" aria-controls="trade">Trade board</button>
     <button role="tab" id="tab-binder" aria-selected="false" aria-controls="binder">Binders</button>
-    <span class="spacer"></span>
-    <button type="button" class="vswitch" id="vswitch" role="switch" aria-checked="false"><span class="long">Show floor values</span><span class="short">Floor values</span><span class="track" aria-hidden="true"></span></button>
   </div>
 
   <section id="trade" role="tabpanel" aria-labelledby="tab-trade" hidden>
@@ -259,7 +260,10 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
       <div class="meter" aria-hidden="true"><i class="a" id="mA" style="width:50%"></i><i class="b" id="mB" style="width:50%"></i></div>
       <div class="verdict" id="verdict">Tick cards on both sides to build an offer. Prices are the current OpenSea floor for that card and finish.</div>
     </div>
-    <button class="btn" id="copyOffer" type="button">Copy offer</button>
+    <div class="tray-ctrl">
+      <button type="button" class="vswitch" id="vswitch" role="switch" aria-checked="false"><span class="long">Show floor values</span><span class="short">Values</span><span class="track" aria-hidden="true"></span></button>
+      <button class="btn" id="copyOffer" type="button">Copy offer</button>
+    </div>
   </div>
 
   <footer>
@@ -503,7 +507,7 @@ function updateTray() {
   const v = $("#verdict"), mini = $("#trayMini");
   if (!give.length && !get.length) mini.textContent = "No cards picked yet";
   else { const d = g.sum - r.sum, m = Math.max(g.sum, r.sum), even = m ? Math.abs(d) / m <= 0.1 : true;
-    mini.textContent = `${give.length} ⇄ ${get.length} · ${sol(g.sum)} vs ${sol(r.sum)}` + (even ? " · even" : ""); }
+    mini.textContent = `${g.sum.toFixed(4)} ⇄ ${sol(r.sum)}` + (even ? " · even" : ""); }
   if (!give.length && !get.length) { v.className = "verdict"; v.textContent = "Tick cards on both sides to build an offer. Prices are the current OpenSea floor for that card and finish."; return; }
   const diff = g.sum - r.sum, gap = Math.abs(diff), rel = both ? gap / Math.max(g.sum, r.sum) : 0;
   if (rel <= 0.1) { v.className = "verdict even"; v.textContent = gap < 0.00005 ? "Even at floor." : `Even at floor: within ${sol(gap)}.`; }
