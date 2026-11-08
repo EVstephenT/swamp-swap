@@ -96,6 +96,16 @@ form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; alig
 .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
 .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; color: var(--muted); font-weight: 600; margin-bottom: -1px; }
 .tabs button[aria-selected="true"] { color: var(--fg); border-color: var(--mutant); }
+.tabs .spacer { flex: 1; }
+.tabs button { white-space: nowrap; }
+.vswitch .short { display: none; }
+.tabs button.vswitch { display: flex; align-items: center; gap: 8px; border-bottom-color: transparent; font-weight: 500; font-size: 13px; padding-right: 2px; }
+.vswitch .track { width: 32px; height: 18px; border-radius: 9px; background: var(--line); position: relative; transition: background .15s; flex: none; }
+.vswitch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.vswitch[aria-checked="true"] { color: var(--fg); }
+.vswitch[aria-checked="true"] .track { background: var(--mutant); }
+.vswitch[aria-checked="true"] .track::after { transform: translateX(14px); background: #0d1a07; }
+body:not(.values) .price, body:not(.values) .meter, body:not(.values) .verdict { display: none; }
 
 /* Trade board */
 .board { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
@@ -174,6 +184,10 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
 }
 @media (max-width: 460px) {
   .slot-row { grid-template-columns: 1fr; }
+  .tabs { gap: 2px; }
+  .tabs button { padding-left: 8px; padding-right: 8px; }
+  .tabs button.vswitch { gap: 6px; padding-right: 0; }
+  .vswitch .long { display: none; } .vswitch .short { display: inline; }
   .tray { grid-template-columns: 1fr; gap: 8px; padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
   .tray-toggle { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; background: none; border: 0; padding: 4px 0; color: var(--fg); font: inherit; font-size: 13px; text-align: left; }
   .tray-toggle #trayMini { font-family: var(--mono); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -222,6 +236,8 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
   <div class="tabs" role="tablist" id="tabs" hidden>
     <button role="tab" id="tab-trade" aria-selected="true" aria-controls="trade">Trade board</button>
     <button role="tab" id="tab-binder" aria-selected="false" aria-controls="binder">Binders</button>
+    <span class="spacer"></span>
+    <button type="button" class="vswitch" id="vswitch" role="switch" aria-checked="false"><span class="long">Show floor values</span><span class="short">Floor values</span><span class="track" aria-hidden="true"></span></button>
   </div>
 
   <section id="trade" role="tabpanel" aria-labelledby="tab-trade" hidden>
@@ -266,7 +282,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const poss = n => n + (/s$/i.test(n) ? "'" : "'s");
 const sol = v => v == null ? "—" : v.toFixed(v < 1 ? 4 : 2) + " SOL";
 
-const state = { A: null, B: null, nameA: "You", nameB: "Them", filter: "all", selected: new Set(), showAll: { get: false, give: false } };
+const state = { A: null, B: null, nameA: "You", nameB: "Them", filter: "all", selected: new Set(), showAll: { get: false, give: false }, values: false };
 const prices = new Map();   // "num|finish" -> number | null
 const pending = new Map();
 
@@ -315,7 +331,7 @@ async function loadWallet(addr, label) {
 
 function queuePrice(num, finish) {
   const k = num + "|" + finish;
-  if (prices.has(k) || pending.has(k)) return;
+  if (!state.values || prices.has(k) || pending.has(k)) return;
   pending.set(k, true);
   priceQueue.push([num, finish]);
   pumpPrices();
@@ -445,7 +461,7 @@ function renderLane(el, dir) {
   el.innerHTML = `<h3><span class="dot ${dot}"></span>${esc(fromName)} → ${esc(toName)}</h3>
     ${group("Fills a gap", o.gaps, `None of ${esc(poss(fromName))} spares are cards ${esc(toName)} is missing. ${missingList(to, from)}`)}
     ${group("Foil upgrade", o.upgrades, `No spare foils for cards ${esc(toName)} only has in Base.`)}
-    <div class="group"><h4><span>Other spares, to balance value</span><span>${o.rest.length}</span></h4>
+    <div class="group"><h4><span>${state.values ? "Other spares, to balance value" : "Other spares"}</span><span>${o.rest.length}</span></h4>
       ${restShown.map(x => itemRow(x, dir)).join("")}
       ${o.rest.length ? `<button type="button" class="more" data-more="${dir}">${state.showAll[dir] ? "Hide other spares" : `Show ${o.rest.length} other spares`}</button>` : `<p class="empty">No other spare copies.</p>`}
     </div>`;
@@ -470,6 +486,13 @@ function updateTray() {
   if (!state.A || !state.B) { tray.hidden = true; return; }
   tray.hidden = false;
   const give = selectedSide("give"), get = selectedSide("get");
+  const cards = n => `${n} card${n === 1 ? "" : "s"}`;
+  if (!state.values) {
+    $("#trayGive").textContent = `${state.nameA} gives ${cards(give.length)}`;
+    $("#trayGet").textContent = `${state.nameB} gives ${cards(get.length)}`;
+    $("#trayMini").textContent = give.length || get.length ? `${cards(give.length)} ⇄ ${cards(get.length)}` : "No cards picked yet";
+    return;
+  }
   const g = total(give), r = total(get);
   const note = t => (t.loading ? ` · pricing ${t.loading}` : "") + (t.unknown ? ` · ${t.unknown} unlisted` : "");
   $("#trayGive").innerHTML = `${esc(state.nameA)} gives ${give.length} card${give.length === 1 ? "" : "s"}: <b>${sol(g.sum)}</b>${note(g)}`;
@@ -487,10 +510,10 @@ function updateTray() {
   else { v.className = "verdict off"; v.textContent = `${diff > 0 ? state.nameA : state.nameB} is giving ${sol(gap)} more at floor. Add a spare from the other side, or settle the difference in SOL.`; }
 }
 async function copyOffer() {
-  const line = x => `#${x.num} ${CARD[x.num].name} (${finishLabel(x.finish)})` + (prices.get(x.num + "|" + x.finish) != null ? ` ~${sol(prices.get(x.num + "|" + x.finish))}` : "");
+  const line = x => `#${x.num} ${CARD[x.num].name} (${finishLabel(x.finish)})` + (state.values && prices.get(x.num + "|" + x.finish) != null ? ` ~${sol(prices.get(x.num + "|" + x.finish))}` : "");
   const give = selectedSide("give"), get = selectedSide("get");
   if (!give.length && !get.length) { flash("#copyOffer", "Tick some cards first"); return; }
-  const text = `Mudwater trade offer\n\n${state.nameA} sends:\n${give.map(line).join("\n") || "(nothing)"}\n\n${state.nameB} sends:\n${get.map(line).join("\n") || "(nothing)"}\n\nFloor value: ${sol(total(give).sum)} for ${sol(total(get).sum)}\n${shareUrl()}`;
+  const text = `Mudwater trade offer\n\n${state.nameA} sends:\n${give.map(line).join("\n") || "(nothing)"}\n\n${state.nameB} sends:\n${get.map(line).join("\n") || "(nothing)"}\n\n${state.values ? `Floor value: ${sol(total(give).sum)} for ${sol(total(get).sum)}\n` : ""}${shareUrl()}`;
   await copyText(text, "#copyOffer", "Offer copied");
 }
 
@@ -580,6 +603,7 @@ function shareUrl() {
   if (state.B) u.searchParams.set("b", state.B.addr);
   if (state.nameA && state.nameA !== "You") u.searchParams.set("an", state.nameA);
   if (state.nameB && state.nameB !== "Them") u.searchParams.set("bn", state.nameB);
+  if (state.values) u.searchParams.set("v", "1");
   return u.toString();
 }
 async function copyText(text, btnSel, done) {
@@ -618,11 +642,24 @@ async function compare() {
   } finally { go.disabled = false; }
 }
 
+// ---------- Floor values switch ----------
+function setValues(on, persist) {
+  state.values = on;
+  document.body.classList.toggle("values", on);
+  $("#vswitch").setAttribute("aria-checked", on);
+  if (persist) { try { localStorage.setItem("swampswap.values", on ? "1" : "0"); } catch (e) {} }
+  if (!state.A || !state.B) return;
+  if (persist) history.replaceState(null, "", shareUrl());
+  renderTrade();
+  if (on) selectedSide("give").concat(selectedSide("get")).forEach(x => queuePrice(x.num, x.finish));
+}
+
 // ---------- Events ----------
 $("#bench").addEventListener("submit", e => { e.preventDefault(); compare(); });
 $("#share").addEventListener("click", () => copyText(shareUrl(), "#share", "Link copied"));
 $("#copyOffer").addEventListener("click", copyOffer);
 $("#trayToggle").addEventListener("click", () => { const t = $("#tray"), open = t.classList.toggle("open"); $("#trayToggle").setAttribute("aria-expanded", open); });
+$("#vswitch").addEventListener("click", () => setValues(!state.values, true));
 $("#tab-trade").addEventListener("click", () => showTab("trade"));
 $("#tab-binder").addEventListener("click", () => showTab("binder"));
 document.addEventListener("change", e => {
@@ -644,6 +681,8 @@ document.addEventListener("click", e => {
   if (q.get("b")) $("#addrB").value = q.get("b");
   if (q.get("an")) $("#nameA").value = q.get("an");
   if (q.get("bn")) $("#nameB").value = q.get("bn");
+  let saved = null; try { saved = localStorage.getItem("swampswap.values"); } catch (e) {}
+  setValues(q.get("v") === "1" || saved === "1", false);
   renderBinder();
   $("#binder").hidden = false;
   if (q.get("a") && q.get("b")) compare();
