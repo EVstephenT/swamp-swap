@@ -171,6 +171,9 @@ body:not(.values) .scale-row { justify-content: flex-start; gap: 6px 28px; }
 .own { display: grid; gap: 3px; font-size: 11px; }
 .own div { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-height: 18px; }
 .own .miss { color: var(--bad); }
+.tprices { display: grid; gap: 3px; border-top: 1px solid var(--line); padding-top: 5px; }
+.tprices div { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.tprices .price { font-size: 11px; }
 .cnt { font-family: var(--mono); font-size: 10px; padding: 0 5px; border-radius: 4px; background: var(--ink); border: 1px solid var(--line); }
 .cnt.foil { border-color: #f3a6c8; } .cnt.ser { border-color: #bfe6f7; }
 .tile.flag-you { border-color: var(--you); }
@@ -534,7 +537,15 @@ function renderFilters() {
   $("#filters").innerHTML = FILTERS.filter(([k]) => k === "all" || hasBoth)
     .map(([k, label]) => `<button type="button" class="chip" data-filter="${k}" aria-pressed="${state.filter === k}">${label}</button>`).join("");
 }
-function hasSpare(inv, num) { const f = inv && inv.cards.get(num); return !!f && Object.values(f).some(n => n > 1); }
+function hasSpare(inv, num) { const f = inv && inv.cards.get(num); return !!f && Object.values(spareOf(f)).some(n => n > 0); }
+// Floor prices for the giver's spare finishes, shown on "can get" / "can give" tiles when values are on.
+function tilePrices(giver, num) {
+  const sp = spareOf(giver.cards.get(num));
+  return `<div class="tprices">${Object.entries(sp).filter(([, n]) => n > 0).sort((a, b) => FINISH_ORDER(a[0]) - FINISH_ORDER(b[0])).map(([f]) => {
+    const k = num + "|" + f, v = prices.get(k); queuePrice(num, f);
+    return `<div><span class="cnt ${finishClass(f)}" title="${esc(f)}">${f === "Base" ? "B" : f === "Foil" ? "F" : "CI"}</span><span class="price${v === null ? " na" : ""}" data-price="${esc(k)}">${prices.has(k) ? (v == null ? "no listing" : sol(v)) : "…"}</span></div>`;
+  }).join("")}</div>`;
+}
 function passes(num) {
   const A = state.A, B = state.B;
   switch (state.filter) {
@@ -576,6 +587,7 @@ function renderBinder() {
           <div class="tn" title="${esc(c.name)}">${esc(c.name)}</div>
           <div class="sub" style="font-size:11px"><span class="rar ${c.rarity}">${c.rarity}</span></div>
           ${both ? `<div class="own">${holdings(A, n, state.nameA, "you")}${holdings(B, n, state.nameB, "them")}</div>` : ""}
+          ${both && state.values && state.filter === "canGet" ? tilePrices(B, n) : ""}${both && state.values && state.filter === "canGive" ? tilePrices(A, n) : ""}
         </div>`;
       }).join("");
       setHtml += `<article class="set">
@@ -654,7 +666,7 @@ function setValues(on, persist) {
   if (persist) { try { localStorage.setItem("swampswap.values", on ? "1" : "0"); } catch (e) {} }
   if (!state.A || !state.B) return;
   if (persist) history.replaceState(null, "", shareUrl());
-  renderTrade();
+  renderTrade(); renderBinder();
   if (on) selectedSide("give").concat(selectedSide("get")).forEach(x => queuePrice(x.num, x.finish));
 }
 
