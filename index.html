@@ -134,6 +134,7 @@ form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; alig
 .meter .a { background: var(--you); } .meter .b { background: var(--them); }
 .verdict { font-size: 13px; }
 .verdict.even { color: var(--good); } .verdict.off { color: var(--warn); }
+.tray-toggle { display: none; }
 
 /* Binder */
 .filters { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -173,7 +174,12 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
 }
 @media (max-width: 460px) {
   .slot-row { grid-template-columns: 1fr; }
-  .tray { grid-template-columns: 1fr; }
+  .tray { grid-template-columns: 1fr; gap: 8px; padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+  .tray-toggle { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; background: none; border: 0; padding: 4px 0; color: var(--fg); font: inherit; font-size: 13px; text-align: left; }
+  .tray-toggle #trayMini { font-family: var(--mono); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tray-toggle .caret { color: var(--muted); transition: transform .15s; }
+  .tray.open .tray-toggle .caret { transform: rotate(180deg); }
+  .tray:not(.open) .scale-row, .tray:not(.open) .verdict, .tray:not(.open) #copyOffer { display: none; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -231,6 +237,7 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
   </section>
 
   <div class="tray" id="tray" hidden>
+    <button class="tray-toggle" id="trayToggle" type="button" aria-expanded="false" aria-controls="tray"><span id="trayMini">No cards picked yet</span><span class="caret" aria-hidden="true">▴</span></button>
     <div class="scale">
       <div class="scale-row"><span id="trayGive">You give: nothing yet</span><span id="trayGet">You get: nothing yet</span></div>
       <div class="meter" aria-hidden="true"><i class="a" id="mA" style="width:50%"></i><i class="b" id="mB" style="width:50%"></i></div>
@@ -451,10 +458,13 @@ function updateTray() {
   const both = g.sum + r.sum;
   $("#mA").style.width = (both ? g.sum / both * 100 : 50) + "%";
   $("#mB").style.width = (both ? r.sum / both * 100 : 50) + "%";
-  const v = $("#verdict");
+  const v = $("#verdict"), mini = $("#trayMini");
+  if (!give.length && !get.length) mini.textContent = "No cards picked yet";
+  else { const d = g.sum - r.sum, m = Math.max(g.sum, r.sum), even = m ? Math.abs(d) / m <= 0.1 : true;
+    mini.textContent = `${give.length} ⇄ ${get.length} · ${sol(g.sum)} vs ${sol(r.sum)}` + (even ? " · even" : ""); }
   if (!give.length && !get.length) { v.className = "verdict"; v.textContent = "Tick cards on both sides to build an offer. Prices are the current OpenSea floor for that card and finish."; return; }
   const diff = g.sum - r.sum, gap = Math.abs(diff), rel = both ? gap / Math.max(g.sum, r.sum) : 0;
-  if (rel <= 0.1) { v.className = "verdict even"; v.textContent = `Even at floor: within ${sol(gap)}.`; }
+  if (rel <= 0.1) { v.className = "verdict even"; v.textContent = gap < 0.00005 ? "Even at floor." : `Even at floor: within ${sol(gap)}.`; }
   else { v.className = "verdict off"; v.textContent = `${diff > 0 ? state.nameA : state.nameB} is giving ${sol(gap)} more at floor. Add a spare from the other side, or settle the difference in SOL.`; }
 }
 async function copyOffer() {
@@ -580,8 +590,10 @@ async function compare() {
     history.replaceState(null, "", shareUrl());
     renderSummary(); renderTrade(); renderBinder();
     $("#tabs").hidden = false; $("#share").hidden = false; showTab("trade");
-    const og = offers(state.B, state.A).gaps.length, ov = offers(state.A, state.B).gaps.length;
-    setStatus(`${state.nameB} has ${og} spare${og === 1 ? " that fills" : "s that fill"} ${state.nameA}'s gaps. ${state.nameA} has ${ov} that fill${ov === 1 ? "s" : ""} ${state.nameB}'s.`);
+    const fill = (from, to) => { const g = offers(from, to).gaps; return { n: new Set(g.map(x => x.num)).size, opts: g.length }; };
+    const extra = f => f.opts > f.n ? ` (${f.opts} options, counting each finish)` : "";
+    const fb = fill(state.B, state.A), fa = fill(state.A, state.B);
+    setStatus(`${state.nameB} can fill ${fb.n} of ${state.nameA}'s missing cards${extra(fb)}. ${state.nameA} can fill ${fa.n} of ${state.nameB}'s${extra(fa)}.`);
   } catch (e) {
     setStatus(e.message || "Something went wrong reading the wallets.", true);
   } finally { go.disabled = false; }
@@ -591,6 +603,7 @@ async function compare() {
 $("#bench").addEventListener("submit", e => { e.preventDefault(); compare(); });
 $("#share").addEventListener("click", () => copyText(shareUrl(), "#share", "Link copied"));
 $("#copyOffer").addEventListener("click", copyOffer);
+$("#trayToggle").addEventListener("click", () => { const t = $("#tray"), open = t.classList.toggle("open"); $("#trayToggle").setAttribute("aria-expanded", open); });
 $("#tab-trade").addEventListener("click", () => showTab("trade"));
 $("#tab-binder").addEventListener("click", () => showTab("binder"));
 document.addEventListener("change", e => {
