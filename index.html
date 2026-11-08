@@ -76,7 +76,7 @@ form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; alig
 .btn.primary { background: var(--mutant); color: #0d1a07; border-color: transparent; }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn[disabled] { opacity: .5; cursor: progress; }
-.hint { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); }
+.hint { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); text-align: right; }
 .hint b { color: var(--fg); font-weight: 600; }
 .status { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); min-height: 1.5em; }
 .status.err { color: var(--bad); }
@@ -192,6 +192,7 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
 
 @media (max-width: 820px) {
   form.bench { grid-template-columns: 1fr; }
+  .hint { text-align: left; }
   .summary, .board { grid-template-columns: 1fr; }
 }
 @media (max-width: 460px) {
@@ -241,9 +242,8 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
     <div class="actions">
       <button class="btn primary" id="go" type="submit">Compare</button>
       <button class="btn" id="swap" type="button" hidden title="Swap whose binder is on which side">⇄ Swap sides</button>
-      <button class="btn" id="share" type="button" hidden>Copy link</button>
     </div>
-    <p class="hint" id="swapHint" hidden>Opened someone's offer link? It shows the trade from their side. Tap <b>⇄ Swap sides</b> to see it from yours.</p>
+    <p class="hint" id="swapHint" hidden><b>Opened someone's offer link?</b> It shows the trade from their side. Tap <b>⇄ Swap sides</b> to see it from yours.</p>
     <p class="status" id="status" role="status">Enter two wallets to compare. The full checklist is below.</p>
   </form>
 
@@ -505,7 +505,9 @@ function total(list) {
   return { sum, unknown, loading };
 }
 function updateTray() {
-  const tray = $("#tray");
+  const tray = $("#tray"), cb = $("#copyOffer");
+  cb.dataset.label = state.selected.size ? "Copy offer link" : "Copy link";
+  if (!cb._t) cb.textContent = cb.dataset.label;
   if (!state.A || !state.B) { tray.hidden = true; return; }
   tray.hidden = false;
   const give = selectedSide("give"), get = selectedSide("get");
@@ -533,8 +535,7 @@ function updateTray() {
   else { v.className = "verdict off"; v.textContent = `${diff > 0 ? state.nameA : state.nameB} is giving ${sol(gap)} more at floor. Add a spare from the other side, or settle the difference in SOL.`; }
 }
 async function copyOfferLink() {
-  if (!state.selected.size) { flash("#copyOffer", "Tick some cards first"); return; }
-  await copyText(shareUrl(true), "#copyOffer", "Link copied");
+  await copyText(shareUrl(true), "#copyOffer", state.selected.size ? "Offer link copied" : "Link copied");
 }
 async function copyOffer() {
   const line = x => `#${x.num} ${CARD[x.num].name} (${finishLabel(x.finish)})` + (state.values && prices.get(x.num + "|" + x.finish) != null ? ` ~${sol(prices.get(x.num + "|" + x.finish))}` : "");
@@ -661,7 +662,7 @@ async function copyText(text, btnSel, done) {
     ta.remove();
   }
 }
-function flash(sel, msg) { const b = $(sel); if (!b.dataset.label) b.dataset.label = b.textContent; b.textContent = msg; clearTimeout(b._t); b._t = setTimeout(() => b.textContent = b.dataset.label, 1600); }
+function flash(sel, msg) { const b = $(sel); if (!b.dataset.label) b.dataset.label = b.textContent; b.textContent = msg; clearTimeout(b._t); b._t = setTimeout(() => { b.textContent = b.dataset.label; b._t = null; }, 1600); }
 function setStatus(msg, err) { const s = $("#status"); s.textContent = msg; s.classList.toggle("err", !!err); }
 
 function fillLine() {
@@ -717,7 +718,7 @@ async function compare() {
     }
     history.replaceState(null, "", shareUrl(true));
     renderSummary(); renderTrade(); renderBinder();
-    $("#tabs").hidden = false; $("#share").hidden = false; $("#swap").hidden = false; $("#swapHint").hidden = false; showTab("trade");
+    $("#tabs").hidden = false; $("#swap").hidden = false; $("#swapHint").hidden = false; showTab("trade");
     setStatus(fillLine()
       + (state.selected.size || dropped ? ` Offer loaded: ${state.selected.size} card${state.selected.size === 1 ? "" : "s"} ticked.` : "")
       + (dropped ? ` ${dropped} card${dropped === 1 ? " is" : "s are"} no longer spare in that wallet, so ${dropped === 1 ? "it was" : "they were"} left out.` : ""));
@@ -741,7 +742,6 @@ function setValues(on, persist) {
 
 // ---------- Events ----------
 $("#bench").addEventListener("submit", e => { e.preventDefault(); compare(); });
-$("#share").addEventListener("click", () => copyText(shareUrl(), "#share", "Link copied"));
 $("#swap").addEventListener("click", swapSides);
 $("#copyOffer").addEventListener("click", copyOfferLink);
 $("#copyText").addEventListener("click", copyOffer);
