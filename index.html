@@ -102,7 +102,10 @@ form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; alig
 .tabs button[aria-selected="true"] { color: var(--fg); border-color: var(--mutant); }
 .tabs button { white-space: nowrap; }
 .tray-prices { display: grid; gap: 6px; align-content: start; min-width: 0; }
-.tray-offer { display: grid; gap: 6px; align-content: start; min-width: 0; padding-left: 18px; border-left: 1px solid var(--line); }
+.tray-offer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; min-width: 0; padding-left: 18px; border-left: 1px solid var(--line); }
+.tray-offer .onote { grid-column: 1; grid-row: 1; }
+.tray-offer .ocount { grid-column: 1; grid-row: 2; }
+.tray-offer .offer-btns { grid-column: 2; grid-row: 1 / span 2; flex-direction: column; gap: 2px; }
 .pnote, .onote { margin: 0; font-size: 12px; color: var(--muted); }
 .onote b { color: var(--fg); font-weight: 600; }
 .ocount { font-size: 13px; }
@@ -208,6 +211,9 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
   .vswitch { grid-column: 2; grid-row: 1; padding: 6px 0; }
   .pnote, .scale { grid-column: 1 / -1; }
   .tray-offer { grid-column: 1 / -1; padding-left: 0; border-left: 0; border-top: 1px solid var(--line); padding-top: 8px; }
+  .tray-offer { grid-template-columns: minmax(0, 1fr); }
+  .tray-offer .onote, .tray-offer .ocount, .tray-offer .offer-btns { grid-column: 1; grid-row: auto; }
+  .tray-offer .offer-btns { flex-direction: row; gap: 12px; }
   .tray { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
   .tray-toggle { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; background: none; border: 0; padding: 4px 0; color: var(--fg); font: inherit; font-size: 13px; text-align: left; }
   .tray-toggle #trayMini { font-family: var(--mono); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -284,7 +290,7 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
       </div>
     </div>
     <div class="tray-offer">
-      <p class="onote">Tick cards on both sides to build an offer, then copy it as a <b>link</b> to open in Swap Swap, or as <b>text</b> to paste in a message.</p>
+      <p class="onote">Tick cards on both sides to build an offer, then copy it as a <b>link</b> to open in Swamp Swap, or as <b>text</b> to paste in a message.</p>
       <div class="ocount" id="offerCount">No cards ticked yet.</div>
       <div class="offer-btns">
         <button class="btn primary" id="copyOffer" type="button">Copy offer link</button>
@@ -334,7 +340,6 @@ async function loadSnapshot() {
 function updateAsOf() {
   const el = $("#asOf"); if (!el) return;
   const sn = state.snap;
-  if (!state.values) { el.textContent = "Turn on to see the current OpenSea floor price for each card and finish."; return; }
   if (sn && sn.fresh) {
     const sameDay = new Date().toDateString() === sn.updated.toDateString();
     el.textContent = `Current OpenSea floor for each card and finish, as of ${sn.updated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${sameDay ? "" : " on " + sn.updated.toLocaleDateString([], { month: "short", day: "numeric" })} · refreshed every 30 min.`;
