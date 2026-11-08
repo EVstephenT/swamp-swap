@@ -76,6 +76,8 @@ form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; alig
 .btn.primary { background: var(--mutant); color: #0d1a07; border-color: transparent; }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn[disabled] { opacity: .5; cursor: progress; }
+.hint { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); }
+.hint b { color: var(--fg); font-weight: 600; }
 .status { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); min-height: 1.5em; }
 .status.err { color: var(--bad); }
 
@@ -98,6 +100,10 @@ form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; alig
 .tabs button[aria-selected="true"] { color: var(--fg); border-color: var(--mutant); }
 .tabs button { white-space: nowrap; }
 .tray-ctrl { display: flex; align-items: center; gap: 14px; }
+.offer-btns { display: grid; gap: 4px; justify-items: center; }
+.offer-btns .btn { width: 100%; }
+.linkish { background: none; border: 0; padding: 2px 4px; color: var(--muted); font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 2px; }
+.linkish:hover { color: var(--fg); }
 .vswitch { display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 6px 0; color: var(--muted); font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; }
 .vswitch .short { display: none; }
 .vswitch .track { width: 32px; height: 18px; border-radius: 9px; background: var(--line); position: relative; transition: background .15s; flex: none; }
@@ -195,13 +201,13 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
   .tray-toggle { grid-column: 1; grid-row: 1; min-width: 0; }
   .vswitch { grid-column: 2; grid-row: 1; }
   .scale { grid-column: 1 / -1; }
-  #copyOffer { grid-column: 1 / -1; }
+  .offer-btns { grid-column: 1 / -1; }
   .tray { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
   .tray-toggle { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; background: none; border: 0; padding: 4px 0; color: var(--fg); font: inherit; font-size: 13px; text-align: left; }
   .tray-toggle #trayMini { font-family: var(--mono); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tray-toggle .caret { color: var(--muted); transition: transform .15s; }
   .tray.open .tray-toggle .caret { transform: rotate(180deg); }
-  .tray:not(.open) .scale-row, .tray:not(.open) .verdict, .tray:not(.open) #copyOffer { display: none; }
+  .tray:not(.open) .scale-row, .tray:not(.open) .verdict, .tray:not(.open) .offer-btns { display: none; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -234,8 +240,10 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
     </div>
     <div class="actions">
       <button class="btn primary" id="go" type="submit">Compare</button>
+      <button class="btn" id="swap" type="button" hidden title="Swap whose binder is on which side">⇄ Swap sides</button>
       <button class="btn" id="share" type="button" hidden>Copy link</button>
     </div>
+    <p class="hint" id="swapHint" hidden>Opened someone's offer link? It shows the trade from their side. Tap <b>⇄ Swap sides</b> to see it from yours.</p>
     <p class="status" id="status" role="status">Enter two wallets to compare. The full checklist is below.</p>
   </form>
 
@@ -259,7 +267,7 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
   </section>
 
   <div class="tray" id="tray" hidden>
-    <button class="tray-toggle" id="trayToggle" type="button" aria-expanded="false" aria-controls="tray"><span id="trayMini">No cards picked yet</span><span class="caret" aria-hidden="true">▴</span></button>
+    <button class="tray-toggle" id="trayToggle" type="button" aria-expanded="false" aria-controls="tray"><span id="trayMini">No cards picked</span><span class="caret" aria-hidden="true">▴</span></button>
     <div class="scale">
       <div class="scale-row"><span id="trayGive">You give: nothing yet</span><span id="trayGet">You get: nothing yet</span></div>
       <div class="meter" aria-hidden="true"><i class="a" id="mA" style="width:50%"></i><i class="b" id="mB" style="width:50%"></i></div>
@@ -267,7 +275,10 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
     </div>
     <div class="tray-ctrl">
       <button type="button" class="vswitch" id="vswitch" role="switch" aria-checked="false"><span class="long">Show floor values</span><span class="short">Values</span><span class="track" aria-hidden="true"></span></button>
-      <button class="btn" id="copyOffer" type="button">Copy offer</button>
+      <div class="offer-btns">
+        <button class="btn primary" id="copyOffer" type="button">Copy offer link</button>
+        <button class="linkish" id="copyText" type="button">Copy as text</button>
+      </div>
     </div>
   </div>
 
@@ -502,7 +513,7 @@ function updateTray() {
   if (!state.values) {
     $("#trayGive").textContent = `${state.nameA} gives ${cards(give.length)}`;
     $("#trayGet").textContent = `${state.nameB} gives ${cards(get.length)}`;
-    $("#trayMini").textContent = give.length || get.length ? `${cards(give.length)} ⇄ ${cards(get.length)}` : "No cards picked yet";
+    $("#trayMini").textContent = give.length || get.length ? `${cards(give.length)} ⇄ ${cards(get.length)}` : "No cards picked";
     return;
   }
   const g = total(give), r = total(get);
@@ -513,7 +524,7 @@ function updateTray() {
   $("#mA").style.width = (both ? g.sum / both * 100 : 50) + "%";
   $("#mB").style.width = (both ? r.sum / both * 100 : 50) + "%";
   const v = $("#verdict"), mini = $("#trayMini");
-  if (!give.length && !get.length) mini.textContent = "No cards picked yet";
+  if (!give.length && !get.length) mini.textContent = "No cards picked";
   else { const d = g.sum - r.sum, m = Math.max(g.sum, r.sum), even = m ? Math.abs(d) / m <= 0.1 : true;
     mini.textContent = `${g.sum.toFixed(4)} ⇄ ${sol(r.sum)}` + (even ? " · even" : ""); }
   if (!give.length && !get.length) { v.className = "verdict"; v.textContent = "Tick cards on both sides to build an offer. Prices are the current OpenSea floor for that card and finish."; return; }
@@ -521,12 +532,16 @@ function updateTray() {
   if (rel <= 0.1) { v.className = "verdict even"; v.textContent = gap < 0.00005 ? "Even at floor." : `Even at floor: within ${sol(gap)}.`; }
   else { v.className = "verdict off"; v.textContent = `${diff > 0 ? state.nameA : state.nameB} is giving ${sol(gap)} more at floor. Add a spare from the other side, or settle the difference in SOL.`; }
 }
+async function copyOfferLink() {
+  if (!state.selected.size) { flash("#copyOffer", "Tick some cards first"); return; }
+  await copyText(shareUrl(true), "#copyOffer", "Link copied");
+}
 async function copyOffer() {
   const line = x => `#${x.num} ${CARD[x.num].name} (${finishLabel(x.finish)})` + (state.values && prices.get(x.num + "|" + x.finish) != null ? ` ~${sol(prices.get(x.num + "|" + x.finish))}` : "");
   const give = selectedSide("give"), get = selectedSide("get");
-  if (!give.length && !get.length) { flash("#copyOffer", "Tick some cards first"); return; }
-  const text = `Mudwater trade offer\n\n${state.nameA} sends:\n${give.map(line).join("\n") || "(nothing)"}\n\n${state.nameB} sends:\n${get.map(line).join("\n") || "(nothing)"}\n\n${state.values ? `Floor value: ${sol(total(give).sum)} for ${sol(total(get).sum)}\n` : ""}${shareUrl()}`;
-  await copyText(text, "#copyOffer", "Offer copied");
+  if (!give.length && !get.length) { flash("#copyText", "Tick some cards first"); return; }
+  const text = `Mudwater trade offer\n\n${state.nameA} sends:\n${give.map(line).join("\n") || "(nothing)"}\n\n${state.nameB} sends:\n${get.map(line).join("\n") || "(nothing)"}\n\n${state.values ? `Floor value: ${sol(total(give).sum)} for ${sol(total(get).sum)}\n` : ""}${shareUrl(true)}`;
+  await copyText(text, "#copyText", "Text copied");
 }
 
 // ---------- Binder ----------
@@ -619,13 +634,23 @@ function showTab(name) {
 }
 
 // ---------- Share / copy ----------
-function shareUrl() {
+// Offer selections in the link: g = card from the second wallet, v = card from the first; b/f = Base/Foil.
+const FIN_CODE = f => f === "Base" ? "b" : f === "Foil" ? "f" : "~" + encodeURIComponent(f);
+const FIN_DECODE = c => c === "b" ? "Base" : c === "f" ? "Foil" : c && c[0] === "~" ? decodeURIComponent(c.slice(1)) : null;
+function encodeOffer() {
+  return [...state.selected].map(id => { const [dir, rest] = id.split(":"), [num, fin] = rest.split("|"); return (dir === "get" ? "g" : "v") + num + FIN_CODE(fin); }).join(".");
+}
+function decodeOffer(str) {
+  return (str || "").split(".").map(t => { const m = t.match(/^([gv])(\d{1,3})(b|f|~.+)$/); if (!m) return null; const fin = FIN_DECODE(m[3]); return fin ? `${m[1] === "g" ? "get" : "give"}:${+m[2]}|${fin}` : null; }).filter(Boolean);
+}
+function shareUrl(withOffer) {
   const u = new URL(location.href.split("?")[0].split("#")[0]);
   if (state.A) u.searchParams.set("a", state.A.addr);
   if (state.B) u.searchParams.set("b", state.B.addr);
   if (state.nameA && state.nameA !== "You") u.searchParams.set("an", state.nameA);
   if (state.nameB && state.nameB !== "Them") u.searchParams.set("bn", state.nameB);
   if (state.values) u.searchParams.set("v", "1");
+  if (withOffer && state.selected.size) u.searchParams.set("o", encodeOffer());
   return u.toString();
 }
 async function copyText(text, btnSel, done) {
@@ -636,8 +661,33 @@ async function copyText(text, btnSel, done) {
     ta.remove();
   }
 }
-function flash(sel, msg) { const b = $(sel), t = b.textContent; b.textContent = msg; setTimeout(() => b.textContent = t, 1600); }
+function flash(sel, msg) { const b = $(sel); if (!b.dataset.label) b.dataset.label = b.textContent; b.textContent = msg; clearTimeout(b._t); b._t = setTimeout(() => b.textContent = b.dataset.label, 1600); }
 function setStatus(msg, err) { const s = $("#status"); s.textContent = msg; s.classList.toggle("err", !!err); }
+
+function fillLine() {
+  const fill = (from, to) => { const g = offers(from, to).gaps; return { n: new Set(g.map(x => x.num)).size, opts: g.length }; };
+  const extra = f => f.opts > f.n ? ` (${f.opts} options, counting each finish)` : "";
+  const fb = fill(state.B, state.A), fa = fill(state.A, state.B);
+  return `${state.nameB} can fill ${fb.n} of ${poss(state.nameA)} missing cards${extra(fb)}. ${state.nameA} can fill ${fa.n} of ${poss(state.nameB)}${extra(fa)}.`;
+}
+
+// ---------- Swap sides ----------
+// Flips which wallet is "yours" without reloading anything; ticked cards keep pointing at the same cards.
+function swapSides() {
+  if (!state.A || !state.B) return;
+  [state.A, state.B] = [state.B, state.A];
+  [state.nameA, state.nameB] = [state.nameB, state.nameA];
+  if (state.nameA === "Them") state.nameA = "You";   // unnamed sides keep their default labels
+  if (state.nameB === "You") state.nameB = "Them";
+  const flip = { get: "give", give: "get" };
+  state.selected = new Set([...state.selected].map(id => { const [dir, rest] = id.split(":"); return flip[dir] + ":" + rest; }));
+  state.showAll = { get: state.showAll.give, give: state.showAll.get };
+  $("#addrA").value = state.A.addr; $("#addrB").value = state.B.addr;
+  $("#nameA").value = state.nameA === "You" ? "" : state.nameA; $("#nameB").value = state.nameB === "Them" ? "" : state.nameB;
+  history.replaceState(null, "", shareUrl(true));
+  renderSummary(); renderTrade(); renderBinder();
+  setStatus(`Sides swapped: ${poss(state.nameA)} binder is now on the left. ` + fillLine());
+}
 
 // ---------- Compare ----------
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -651,14 +701,27 @@ async function compare() {
   try {
     state.A = await loadWallet(a, state.nameA);
     state.B = await loadWallet(b, state.nameB);
-    state.selected.clear(); state.filter = "all";
-    history.replaceState(null, "", shareUrl());
+    state.selected.clear(); state.filter = "all"; state.showAll = { get: false, give: false };
+    let dropped = 0;
+    if (state.pendingOffer) {
+      const avail = { get: offers(state.B, state.A), give: offers(state.A, state.B) };
+      for (const id of state.pendingOffer) {
+        const [dir, rest] = id.split(":"), [num, fin] = rest.split("|"), o = avail[dir];
+        const match = x => x.num === +num && x.finish === fin;
+        if (o.gaps.some(match) || o.upgrades.some(match)) state.selected.add(id);
+        else if (o.rest.some(match)) { state.selected.add(id); state.showAll[dir] = true; }
+        else dropped++;
+      }
+      state.pendingOffer = null;
+      state.selected.forEach(id => { const [num, fin] = id.split(":")[1].split("|"); queuePrice(+num, fin); });
+    }
+    history.replaceState(null, "", shareUrl(true));
     renderSummary(); renderTrade(); renderBinder();
-    $("#tabs").hidden = false; $("#share").hidden = false; showTab("trade");
-    const fill = (from, to) => { const g = offers(from, to).gaps; return { n: new Set(g.map(x => x.num)).size, opts: g.length }; };
-    const extra = f => f.opts > f.n ? ` (${f.opts} options, counting each finish)` : "";
-    const fb = fill(state.B, state.A), fa = fill(state.A, state.B);
-    setStatus(`${state.nameB} can fill ${fb.n} of ${poss(state.nameA)} missing cards${extra(fb)}. ${state.nameA} can fill ${fa.n} of ${poss(state.nameB)}${extra(fa)}.`);
+    $("#tabs").hidden = false; $("#share").hidden = false; $("#swap").hidden = false; $("#swapHint").hidden = false; showTab("trade");
+    setStatus(fillLine()
+      + (state.selected.size || dropped ? ` Offer loaded: ${state.selected.size} card${state.selected.size === 1 ? "" : "s"} ticked.` : "")
+      + (dropped ? ` ${dropped} card${dropped === 1 ? " is" : "s are"} no longer spare in that wallet, so ${dropped === 1 ? "it was" : "they were"} left out.` : ""));
+    if (state.selected.size) { const t = $("#tray"); t.classList.add("open"); $("#trayToggle").setAttribute("aria-expanded", true); }
   } catch (e) {
     setStatus(e.message || "Something went wrong reading the wallets.", true);
   } finally { go.disabled = false; }
@@ -671,7 +734,7 @@ function setValues(on, persist) {
   $("#vswitch").setAttribute("aria-checked", on);
   if (persist) { try { localStorage.setItem("swampswap.values", on ? "1" : "0"); } catch (e) {} }
   if (!state.A || !state.B) return;
-  if (persist) history.replaceState(null, "", shareUrl());
+  if (persist) history.replaceState(null, "", shareUrl(true));
   renderTrade(); renderBinder();
   if (on) selectedSide("give").concat(selectedSide("get")).forEach(x => queuePrice(x.num, x.finish));
 }
@@ -679,7 +742,9 @@ function setValues(on, persist) {
 // ---------- Events ----------
 $("#bench").addEventListener("submit", e => { e.preventDefault(); compare(); });
 $("#share").addEventListener("click", () => copyText(shareUrl(), "#share", "Link copied"));
-$("#copyOffer").addEventListener("click", copyOffer);
+$("#swap").addEventListener("click", swapSides);
+$("#copyOffer").addEventListener("click", copyOfferLink);
+$("#copyText").addEventListener("click", copyOffer);
 $("#trayToggle").addEventListener("click", () => { const t = $("#tray"), open = t.classList.toggle("open"); $("#trayToggle").setAttribute("aria-expanded", open); });
 $("#vswitch").addEventListener("click", () => setValues(!state.values, true));
 $("#tab-trade").addEventListener("click", () => showTab("trade"));
@@ -689,6 +754,7 @@ document.addEventListener("change", e => {
   if (e.target.checked) { state.selected.add(id); const [num, finish] = id.split(":")[1].split("|"); queuePrice(+num, finish); }
   else state.selected.delete(id);
   e.target.closest(".item").classList.toggle("on", e.target.checked);
+  history.replaceState(null, "", shareUrl(true));
   updateTray();
 });
 document.addEventListener("click", e => {
@@ -707,6 +773,7 @@ document.addEventListener("click", e => {
   setValues(q.get("v") === "1" || saved === "1", false);
   renderBinder();
   $("#binder").hidden = false;
+  state.pendingOffer = q.get("o") ? decodeOffer(q.get("o")) : null;
   if (q.get("a") && q.get("b")) compare();
 })();
 </script>
