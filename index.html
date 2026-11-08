@@ -111,7 +111,8 @@ form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; alig
 .vswitch[aria-checked="true"] { color: var(--fg); }
 .vswitch[aria-checked="true"] .track { background: var(--mutant); }
 .vswitch[aria-checked="true"] .track::after { transform: translateX(14px); background: #0d1a07; }
-body:not(.values) .price, body:not(.values) .meter, body:not(.values) .verdict { display: none; }
+body:not(.values) .price, body:not(.values) .meter, body:not(.values) .verdict, body:not(.values) .asof { display: none; }
+.asof { font-size: 11px; color: var(--muted); }
 body:not(.values) .scale-row { justify-content: flex-start; gap: 6px 28px; }
 
 /* Trade board */
@@ -208,7 +209,7 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
   .tray-toggle #trayMini { font-family: var(--mono); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tray-toggle .caret { color: var(--muted); transition: transform .15s; }
   .tray.open .tray-toggle .caret { transform: rotate(180deg); }
-  .tray:not(.open) .scale-row, .tray:not(.open) .verdict, .tray:not(.open) .offer-btns { display: none; }
+  .tray:not(.open) .scale-row, .tray:not(.open) .verdict, .tray:not(.open) .asof, .tray:not(.open) .offer-btns { display: none; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -272,6 +273,7 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
       <div class="scale-row"><span id="trayGive">You give: nothing yet</span><span id="trayGet">You get: nothing yet</span></div>
       <div class="meter" aria-hidden="true"><i class="a" id="mA" style="width:50%"></i><i class="b" id="mB" style="width:50%"></i></div>
       <div class="verdict" id="verdict">Tick cards on both sides to build an offer. Prices are the current OpenSea floor for that card and finish.</div>
+      <div class="asof" id="asOf"></div>
     </div>
     <div class="tray-ctrl">
       <button type="button" class="vswitch" id="vswitch" role="switch" aria-checked="false"><span class="long">Show floor values</span><span class="short">Values</span><span class="track" aria-hidden="true"></span></button>
@@ -302,9 +304,32 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const poss = n => n + (/s$/i.test(n) ? "'" : "'s");
 const sol = v => v == null ? "—" : v.toFixed(v < 1 ? 4 : 2) + " SOL";
 
-const state = { A: null, B: null, nameA: "You", nameB: "Them", filter: "all", selected: new Set(), showAll: { get: false, give: false }, values: false };
+const state = { snap: null, A: null, B: null, nameA: "You", nameB: "Them", filter: "all", selected: new Set(), showAll: { get: false, give: false }, values: false };
 const prices = new Map();   // "num|finish" -> number | null
 const pending = new Map();
+// Floor-price snapshot published next to this page every 30 minutes by a GitHub Actions workflow.
+// If it's missing or more than 2 hours old, the page looks prices up live from OpenSea instead.
+let snapReady = Promise.resolve();
+const SNAPSHOT_MAX_AGE = 2 * 60 * 60 * 1000;
+async function loadSnapshot() {
+  try {
+    const r = await fetch("prices.json", { cache: "no-store" });
+    if (!r.ok) return;
+    const j = await r.json(), updated = new Date(j.updated);
+    if (!j.prices || isNaN(updated)) return;
+    state.snap = { updated, finishes: j.finishes || ["Base", "Foil"], fresh: Date.now() - updated < SNAPSHOT_MAX_AGE };
+    if (state.snap.fresh) for (const [k, v] of Object.entries(j.prices)) if (!prices.has(k)) prices.set(k, v);
+  } catch (e) { /* no snapshot: live lookups */ }
+  finally { updateAsOf(); }
+}
+function updateAsOf() {
+  const el = $("#asOf"); if (!el) return;
+  const sn = state.snap;
+  if (sn && sn.fresh) {
+    const sameDay = new Date().toDateString() === sn.updated.toDateString();
+    el.textContent = `Floor prices as of ${sn.updated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${sameDay ? "" : " on " + sn.updated.toLocaleDateString([], { month: "short", day: "numeric" })} · refreshed every 30 min`;
+  } else el.textContent = sn ? "Price snapshot is out of date, so prices are being looked up live from OpenSea." : "Live floor prices from OpenSea.";
+}
 
 // ---------- Finish handling ----------
 function finishClass(f) { return f === "Base" ? "base" : f === "Foil" ? "foil" : "ser"; }
@@ -567,6 +592,14 @@ function tilePrices(giver, num) {
     return `<div><span class="cnt ${finishClass(f)}" title="${esc(f)}">${f === "Base" ? "B" : f === "Foil" ? "F" : "CI"}</span><span class="price${v === null ? " na" : ""}" data-price="${esc(k)}">${prices.has(k) ? (v == null ? "no listing" : sol(v)) : "…"}</span></div>`;
   }).join("")}</div>`;
 }
+// Market floor (cheapest OpenSea listing) per finish, for cards a wallet is missing.
+function tileMarket(num) {
+  const fins = ((state.snap && state.snap.finishes) || ["Base", "Foil"]).slice().sort((a, b) => FINISH_ORDER(a) - FINISH_ORDER(b));
+  return `<div class="tprices" title="Cheapest listing on OpenSea">${fins.map(f => {
+    const k = num + "|" + f, v = prices.get(k); queuePrice(num, f);
+    return `<div><span class="cnt ${finishClass(f)}" title="${esc(f)}">${f === "Base" ? "B" : f === "Foil" ? "F" : "CI"}</span><span class="price${v === null ? " na" : ""}" data-price="${esc(k)}">${prices.has(k) ? (v == null ? "no listing" : sol(v)) : "…"}</span></div>`;
+  }).join("")}</div>`;
+}
 function passes(num) {
   const A = state.A, B = state.B;
   switch (state.filter) {
@@ -609,7 +642,7 @@ function renderBinder() {
           <div class="tn" title="${esc(c.name)}">${esc(c.name)}</div>
           <div class="sub" style="font-size:11px"><span class="rar ${c.rarity}">${c.rarity}</span></div>
           ${both ? `<div class="own">${holdings(A, n, state.nameA, "you")}${holdings(B, n, state.nameB, "them")}</div>` : ""}
-          ${both && state.values && state.filter === "canGet" ? tilePrices(B, n) : ""}${both && state.values && state.filter === "canGive" ? tilePrices(A, n) : ""}
+          ${both && state.values && state.filter === "canGet" ? tilePrices(B, n) : ""}${both && state.values && state.filter === "canGive" ? tilePrices(A, n) : ""}${both && state.values && (state.filter === "needYou" || state.filter === "needThem") ? tileMarket(n) : ""}
         </div>`;
       }).join("");
       setHtml += `<article class="set">
@@ -700,6 +733,7 @@ async function compare() {
   if (a === b) { setStatus("Those are the same wallet. Enter two different ones.", true); return; }
   const go = $("#go"); go.disabled = true;
   try {
+    await snapReady;
     state.A = await loadWallet(a, state.nameA);
     state.B = await loadWallet(b, state.nameB);
     state.selected.clear(); state.filter = "all"; state.showAll = { get: false, give: false };
@@ -769,6 +803,7 @@ document.addEventListener("click", e => {
   if (q.get("b")) $("#addrB").value = q.get("b");
   if (q.get("an")) $("#nameA").value = q.get("an");
   if (q.get("bn")) $("#nameB").value = q.get("bn");
+  snapReady = loadSnapshot();
   let saved = null; try { saved = localStorage.getItem("swampswap.values"); } catch (e) {}
   setValues(q.get("v") === "1" || saved === "1", false);
   renderBinder();
