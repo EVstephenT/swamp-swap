@@ -263,6 +263,7 @@ const CARD = Object.fromEntries(DATA.cards.map(c => [c.number, c]));
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const poss = n => n + (/s$/i.test(n) ? "'" : "'s");
 const sol = v => v == null ? "—" : v.toFixed(v < 1 ? 4 : 2) + " SOL";
 
 const state = { A: null, B: null, nameA: "You", nameB: "Them", filter: "all", selected: new Set(), showAll: { get: false, give: false } };
@@ -293,10 +294,10 @@ async function loadWallet(addr, label) {
   const items = []; let next = null, page = 0;
   do {
     const j = await os(`/chain/solana/account/${addr}/nfts?collection=${SLUG}&limit=200` + (next ? "&next=" + encodeURIComponent(next) : ""));
-    if (!j) throw new Error(`Couldn't read ${label}'s wallet. Check the address.`);
+    if (!j) throw new Error(`Couldn't read ${poss(label)} wallet. Check the address.`);
     items.push(...(j.nfts || []));
     next = j.next; page++;
-    setStatus(`Reading ${label}'s binder… ${items.length} cards`);
+    setStatus(`Reading ${poss(label)} binder… ${items.length} cards`);
   } while (next && page < 60);
   const inv = { addr, cards: new Map(), total: items.length, images: new Map() };
   for (const n of items) {
@@ -442,7 +443,7 @@ function renderLane(el, dir) {
   const group = (title, list, empty) => `<div class="group"><h4><span>${title}</span><span>${list.length}</span></h4>${list.length ? list.map(x => itemRow(x, dir)).join("") : `<p class="empty">${empty}</p>`}</div>`;
   const restShown = state.showAll[dir] ? o.rest : [];
   el.innerHTML = `<h3><span class="dot ${dot}"></span>${esc(fromName)} → ${esc(toName)}</h3>
-    ${group("Fills a gap", o.gaps, `None of ${esc(fromName)}'s spares are cards ${esc(toName)} is missing. ${missingList(to, from)}`)}
+    ${group("Fills a gap", o.gaps, `None of ${esc(poss(fromName))} spares are cards ${esc(toName)} is missing. ${missingList(to, from)}`)}
     ${group("Foil upgrade", o.upgrades, `No spare foils for cards ${esc(toName)} only has in Base.`)}
     <div class="group"><h4><span>Other spares, to balance value</span><span>${o.rest.length}</span></h4>
       ${restShown.map(x => itemRow(x, dir)).join("")}
@@ -611,7 +612,7 @@ async function compare() {
     const fill = (from, to) => { const g = offers(from, to).gaps; return { n: new Set(g.map(x => x.num)).size, opts: g.length }; };
     const extra = f => f.opts > f.n ? ` (${f.opts} options, counting each finish)` : "";
     const fb = fill(state.B, state.A), fa = fill(state.A, state.B);
-    setStatus(`${state.nameB} can fill ${fb.n} of ${state.nameA}'s missing cards${extra(fb)}. ${state.nameA} can fill ${fa.n} of ${state.nameB}'s${extra(fa)}.`);
+    setStatus(`${state.nameB} can fill ${fb.n} of ${poss(state.nameA)} missing cards${extra(fb)}. ${state.nameA} can fill ${fa.n} of ${poss(state.nameB)}${extra(fa)}.`);
   } catch (e) {
     setStatus(e.message || "Something went wrong reading the wallets.", true);
   } finally { go.disabled = false; }
