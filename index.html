@@ -153,6 +153,7 @@ body:not(.values) .price, body:not(.values) .scale { display: none; }
 .meta .sub { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
 .price { font-family: var(--mono); font-size: 13px; text-align: right; white-space: nowrap; }
 .price.na { color: var(--muted); }
+.h4note { font-style: normal; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
 .sortbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 8px; font-size: 12px; color: var(--muted); }
 .sortbar button { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; color: var(--muted); font: inherit; font-size: 12px; }
 .sortbar button[aria-pressed="true"] { color: var(--fg); border-color: var(--mutant); background: rgba(147, 214, 79, .12); }
@@ -572,7 +573,7 @@ function renderLane(el, dir) {
   el.innerHTML = `<h3><span class="dot ${dot}"></span>${esc(fromName)} → ${esc(toName)}</h3>
     ${group("Fills a gap", o.gaps, `None of ${esc(poss(fromName))} spares are cards ${esc(toName)} is missing. ${missingList(to, from)}`)}
     ${group("Foil upgrade", o.upgrades, `No spare foils for cards ${esc(toName)} only has in Base.`)}
-    <div class="group"><h4><span>${state.values ? "Other spares, to balance value" : "Other spares"}</span><span>${o.rest.length}</span></h4>
+    <div class="group"><h4><span>${state.values ? "Other spares, to balance value" : `Other spares${o.rest.length > 1 ? ` <em class="h4note">(turn on floor values to sort by price)</em>` : ""}`}</span><span>${o.rest.length}</span></h4>
       ${sortBar}${restShown.map(x => itemRow(x, dir)).join("")}
       ${o.rest.length ? `<button type="button" class="more" data-more="${dir}">${state.showAll[dir] ? "Hide other spares" : `Show ${o.rest.length} other spares`}</button>` : `<p class="empty">No other spare copies.</p>`}
     </div>`;
