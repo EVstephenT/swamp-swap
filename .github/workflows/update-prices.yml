@@ -33,7 +33,7 @@ jobs:
       - name: Prepare site folder
         run: |
           mkdir -p _site
-          cp index.html _site/
+          cp index.html *.png _site/
           # Start from the currently published prices so a failed lookup never blanks them.
           curl -fsSL "https://evstephent.github.io/swamp-swap/prices.json" -o _site/prices.json || echo "No published prices.json yet."
 
