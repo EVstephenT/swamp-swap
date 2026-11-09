@@ -61,7 +61,7 @@ header.mast { display: flex; flex-wrap: wrap; align-items: end; justify-content:
 .setline { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
 
 /* Wallet bench */
-form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: start; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
 .slot { display: grid; gap: 6px; min-width: 0; }
 .slot label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
@@ -70,12 +70,18 @@ form.bench { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; alig
 .slot input { width: 100%; min-width: 0; background: var(--ink); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; }
 .slot input.addr { font-family: var(--mono); font-size: 13px; }
 .slot input::placeholder { color: #5f6f65; }
-.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--label-h, 24px); }
 .btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 9px; padding: 10px 16px; font-weight: 600; white-space: nowrap; }
 .btn:hover { border-color: var(--muted); }
 .btn.primary { background: var(--mutant); color: #0d1a07; border-color: transparent; }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn[disabled] { opacity: .5; cursor: progress; }
+.recent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+#recentList { display: contents; }
+.rchip { display: inline-flex; align-items: center; border: 1px solid var(--line); background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+.rchip button { background: none; border: 0; color: var(--fg); font: inherit; font-size: 13px; padding: 5px 4px 5px 11px; }
+.rchip button.rx { color: var(--muted); padding: 5px 10px 5px 6px; font-size: 14px; line-height: 1; }
+.rchip button:hover { color: var(--fg); } .rchip button.rx:hover { color: var(--bad); }
 .hint { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); text-align: right; }
 .hint b { color: var(--fg); font-weight: 600; }
 .result { margin: -6px 0 0; font-size: 14px; color: var(--muted); }
@@ -199,6 +205,7 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
 
 @media (max-width: 820px) {
   form.bench { grid-template-columns: 1fr; }
+  .actions { margin-top: 0; }
   .hint { text-align: left; }
   .summary, .board { grid-template-columns: 1fr; }
 }
@@ -252,6 +259,7 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
         <input id="nameB" placeholder="Name" maxlength="20">
         <input id="addrB" class="addr" placeholder="Solana wallet address" spellcheck="false">
       </div>
+      <div class="recent" id="recent" hidden><span class="rlabel">Recent:</span><span id="recentList"></span></div>
     </div>
     <div class="actions">
       <button class="btn primary" id="go" type="submit">Compare</button>
@@ -749,7 +757,36 @@ function swapSides() {
 
 // ---------- Compare ----------
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-async function compare() {
+// ---------- Saved wallets (this browser only) ----------
+// "me" = your own name + wallet, filled in automatically next time.
+// "recent" = the last 5 wallets you compared against, newest first; one tap fills "Their binder".
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("swampswap." + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("swampswap." + k, JSON.stringify(v)); } catch (e) {} }
+};
+const short = a => a.slice(0, 4) + "…" + a.slice(-4);
+function addRecent(name, addr) {
+  const list = store.get("recent", []).filter(r => r.addr !== addr);
+  list.unshift({ name: name || "", addr });
+  store.set("recent", list.slice(0, 5)); renderRecent();
+}
+function renderRecent() {
+  const list = store.get("recent", []), me = store.get("me", null);
+  const shown = list.filter(r => !me || r.addr !== me.addr);
+  $("#recent").hidden = !shown.length;
+  $("#recentList").innerHTML = shown.map(r => `<span class="rchip"><button type="button" data-fill="${esc(r.addr)}" title="${esc(r.addr)}">${esc(r.name || short(r.addr))}</button><button type="button" class="rx" data-forget="${esc(r.addr)}" aria-label="Remove ${esc(r.name || short(r.addr))} from recent">×</button></span>`).join("");
+}
+// After a successful comparison: work out which side is you, remember you, and save the other side.
+function rememberWallets(fromLink) {
+  const me = store.get("me", null), A = { name: state.nameA === "You" ? "" : state.nameA, addr: state.A.addr }, B = { name: state.nameB === "Them" ? "" : state.nameB, addr: state.B.addr };
+  if (me && me.addr === A.addr) { store.set("me", { name: A.name || me.name, addr: A.addr }); addRecent(B.name, B.addr); }
+  else if (me && me.addr === B.addr) addRecent(A.name, A.addr);          // e.g. opened someone's offer link before swapping
+  else if (!fromLink) { store.set("me", A); addRecent(B.name, B.addr); }  // you typed it: "Your binder" is you
+  else addRecent(A.name, A.addr);                                         // a link from someone: save the sender
+  renderRecent();
+}
+
+async function compare(fromLink) {
   const a = $("#addrA").value.trim(), b = $("#addrB").value.trim();
   state.nameA = $("#nameA").value.trim() || "You";
   state.nameB = $("#nameB").value.trim() || "Them";
@@ -783,6 +820,7 @@ async function compare() {
       + (state.selected.size || dropped ? ` Offer loaded: ${state.selected.size} card${state.selected.size === 1 ? "" : "s"} ticked.` : "")
       + (dropped ? ` ${dropped} card${dropped === 1 ? " is" : "s are"} no longer spare in that wallet, so ${dropped === 1 ? "it was" : "they were"} left out.` : ""));
     if (state.selected.size) setTrayOpen(true);
+    rememberWallets(fromLink === true);
   } catch (e) {
     setStatus(e.message || "Something went wrong reading the wallets.", true);
   } finally { go.disabled = false; }
@@ -800,7 +838,12 @@ function setValues(on, persist) {
 }
 
 // ---------- Events ----------
-$("#bench").addEventListener("submit", e => { e.preventDefault(); compare(); });
+$("#bench").addEventListener("submit", e => { e.preventDefault(); compare(false); });
+$("#recent").addEventListener("click", e => {
+  const fill = e.target.closest("[data-fill]"), forget = e.target.closest("[data-forget]");
+  if (fill) { const r = store.get("recent", []).find(x => x.addr === fill.dataset.fill); if (r) { $("#nameB").value = r.name; $("#addrB").value = r.addr; $("#go").focus(); } }
+  if (forget) { store.set("recent", store.get("recent", []).filter(x => x.addr !== forget.dataset.forget)); renderRecent(); }
+});
 $("#swap").addEventListener("click", swapSides);
 $("#copyOffer").addEventListener("click", copyOfferLink);
 $("#copyText").addEventListener("click", copyOffer);
@@ -830,12 +873,15 @@ document.addEventListener("click", e => {
   if (q.get("b")) $("#addrB").value = q.get("b");
   if (q.get("an")) $("#nameA").value = q.get("an");
   if (q.get("bn")) $("#nameB").value = q.get("bn");
+  const me = store.get("me", null);
+  if (me && !q.get("a") && !q.get("b")) { $("#nameA").value = me.name || ""; $("#addrA").value = me.addr; }
+  renderRecent();
   snapReady = loadSnapshot();
   setValues(false);   // each person chooses whether to show prices; always starts off
   renderBinder();
   $("#binder").hidden = false;
   state.pendingOffer = q.get("o") ? decodeOffer(q.get("o")) : null;
-  if (q.get("a") && q.get("b")) compare();
+  if (q.get("a") && q.get("b")) compare(true);
 })();
 </script>
 </body>
