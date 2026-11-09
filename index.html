@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Swamp Swap</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="description" content="Compare two Mudwater: Swamp Origins binders and find trades.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,6 +56,11 @@ button { cursor: pointer; }
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
 /* Masthead */
+.brandrow { display: flex; align-items: center; gap: 14px; }
+.byline { display: inline-block; margin-top: 6px; font-family: var(--mono); font-size: 13px; letter-spacing: .3px; color: var(--mutant); text-decoration: none; }
+.byline:hover { text-decoration: underline; text-underline-offset: 3px; }
+.logo { width: 64px; height: 64px; border-radius: 50%; flex: none; box-shadow: 0 0 0 2px var(--mutant), 0 6px 18px rgba(0,0,0,.35); }
+@media (max-width: 460px) { .logo { width: 52px; height: 52px; } .brandrow { gap: 12px; } }
 header.mast { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 20px; }
 .brand { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(30px, 6vw, 46px); line-height: 1; letter-spacing: .5px; }
 .brand span { color: var(--mutant); }
@@ -238,9 +245,13 @@ footer { color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
 <body>
 <div class="wrap">
   <header class="mast">
-    <div>
+    <div class="brandrow">
+      <img class="logo" src="logo.png" alt="" width="64" height="64">
+      <div>
       <h1 class="brand">Swamp <span>Swap</span></h1>
+      <a class="byline" href="https://x.com/108stitchesNFT" target="_blank" rel="noopener">by 108stitches</a>
       <p class="tag">Put two Mudwater binders side by side and find the trades.</p>
+      </div>
     </div>
     <div class="setline">Swamp Origins · 120 cards · 4 tribes · 16 sets</div>
   </header>
