@@ -154,9 +154,11 @@ body:not(.values) .price, body:not(.values) .scale { display: none; }
 .price { font-family: var(--mono); font-size: 13px; text-align: right; white-space: nowrap; }
 .price.na { color: var(--muted); }
 .h4note { font-style: normal; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
-.sortbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 8px; font-size: 12px; color: var(--muted); }
-.sortbar button { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; color: var(--muted); font: inherit; font-size: 12px; }
-.sortbar button[aria-pressed="true"] { color: var(--fg); border-color: var(--mutant); background: rgba(147, 214, 79, .12); }
+.sortbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 2px 0 8px; font-size: 12px; color: var(--muted); }
+.sortbar .sorts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sortbar .more.top { margin-left: auto; }
+.sortbar .sorts button { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; color: var(--muted); font: inherit; font-size: 12px; }
+.sortbar .sorts button[aria-pressed="true"] { color: var(--fg); border-color: var(--mutant); background: rgba(147, 214, 79, .12); }
 .more { background: none; border: 0; color: var(--you); padding: 4px 0; font-size: 13px; text-align: left; }
 
 /* Finish + rarity chips */
@@ -568,8 +570,11 @@ function renderLane(el, dir) {
   const sortBy = state.values ? state.restSort[dir] : "num";
   const restShown = state.showAll[dir] ? sortRest(o.rest, sortBy) : [];
   if (state.values && state.showAll[dir]) restShown.forEach(x => queuePrice(x.num, x.finish));   // only looks up if the price list lacks it
-  const sortBar = state.values && state.showAll[dir] && o.rest.length > 1
-    ? `<div class="sortbar" role="group" aria-label="Sort other spares">Sort: ${[["num", "Card #"], ["desc", "Price ↓"], ["asc", "Price ↑"]].map(([k, l]) => `<button type="button" data-sort="${dir}|${k}" aria-pressed="${sortBy === k}">${l}</button>`).join("")}</div>` : "";
+  // Top row when the list is open: sort choices (floor values on) plus a second "Hide other spares" link.
+  const sorts = state.values && o.rest.length > 1
+    ? `<span class="sorts" role="group" aria-label="Sort other spares">Sort: ${[["num", "Card #"], ["desc", "Price ↓"], ["asc", "Price ↑"]].map(([k, l]) => `<button type="button" data-sort="${dir}|${k}" aria-pressed="${sortBy === k}">${l}</button>`).join("")}</span>` : "";
+  const sortBar = state.showAll[dir] && o.rest.length
+    ? `<div class="sortbar">${sorts}<button type="button" class="more top" data-more="${dir}">Hide other spares</button></div>` : "";
   el.innerHTML = `<h3><span class="dot ${dot}"></span>${esc(fromName)} → ${esc(toName)}</h3>
     ${group("Fills a gap", o.gaps, `None of ${esc(poss(fromName))} spares are cards ${esc(toName)} is missing. ${missingList(to, from)}`)}
     ${group("Foil upgrade", o.upgrades, `No spare foils for cards ${esc(toName)} only has in Base.`)}
