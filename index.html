@@ -179,7 +179,8 @@ body:not(.values) .price, body:not(.values) .scale { display: none; }
 /* Finish + rarity chips */
 .fin { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
 .fin.foil { color: #1a1408; border-color: transparent; background: linear-gradient(110deg, #f6d97a, #f3a6c8 40%, #9fd8f5 75%, #f6d97a); }
-.fin.ser { color: #0d1a22; border-color: transparent; background: linear-gradient(135deg, #f4fbff 0 20%, #bfe6f7 20% 38%, #ffffff 38% 52%, #9fd1ea 52% 70%, #e6f6ff 70%); }
+.fin.ser { color: #2a1d05; border-color: transparent; background: linear-gradient(135deg, #f6e3a1, #d6a44d 55%, #f3d98a); }
+.fin.ice { color: #0d1a22; border-color: transparent; background: linear-gradient(135deg, #f4fbff 0 20%, #bfe6f7 20% 38%, #ffffff 38% 52%, #9fd1ea 52% 70%, #e6f6ff 70%); }
 .rar { font-size: 11px; }
 .rar.Legendary { color: var(--warn); } .rar.Prestige { color: var(--cosmic); } .rar.Rare { color: var(--you); }
 
@@ -222,7 +223,7 @@ body:not(.values) .price, body:not(.values) .scale { display: none; }
 .tprices div { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .tprices .price { font-size: 11px; }
 .cnt { font-family: var(--mono); font-size: 10px; padding: 0 5px; border-radius: 4px; background: var(--ink); border: 1px solid var(--line); }
-.cnt.foil { border-color: #f3a6c8; } .cnt.ser { border-color: #bfe6f7; }
+.cnt.foil { border-color: #f3a6c8; } .cnt.ser { border-color: #d6a44d; } .cnt.ice { border-color: #bfe6f7; }
 .tile.flag-you { border-color: var(--you); }
 .tile.flag-them { border-color: var(--them); }
 /* Neither wallet owns the card: show the art greyed out, like the official binder */
@@ -392,10 +393,14 @@ function updateAsOf() {
 }
 
 // ---------- Finish handling ----------
-function finishClass(f) { return f === "Base" ? "base" : f === "Foil" ? "foil" : "ser"; }
-function finishLabel(f) { return f === "Base" || f === "Foil" ? f : "Cracked Ice"; }
+// Finishes (official Mudwater FAQ): Base, Foil or Serialized. Serialized cards are numbered runs ("Serial" trait,
+// e.g. 4/5); the rarest are the eight serialized Cracked Ice 1/1s, tracked here as their own finish.
+const ICE = "Cracked Ice 1/1";
+function finishClass(f) { return f === "Base" ? "base" : f === "Foil" ? "foil" : f === ICE ? "ice" : "ser"; }
+function finishLabel(f) { return f; }
+function finishBadge(f) { return f === "Base" ? "B" : f === "Foil" ? "F" : f === "Serialized" ? "S" : f === ICE ? "1/1" : f.slice(0, 2); }
 function finishChip(f) { return `<span class="fin ${finishClass(f)}" title="${esc(f)}">${esc(finishLabel(f))}</span>`; }
-const FINISH_ORDER = f => f === "Base" ? 0 : f === "Foil" ? 1 : 2;
+const FINISH_ORDER = f => f === "Base" ? 0 : f === "Foil" ? 1 : f === "Serialized" ? 2 : f === ICE ? 3 : 2.5;
 
 // ---------- OpenSea ----------
 async function os(path) {
@@ -425,7 +430,7 @@ async function loadWallet(addr, label) {
     const t = Object.fromEntries((n.traits || []).map(a => [a.trait_type, a.value]));
     const num = parseInt(t["Card Number"], 10);
     if (!CARD[num]) continue;
-    const f = t.Finish || "Base";
+    const f = t.Finish === "Serialized" && /^1\s*\/\s*1$/.test(String(t.Serial || "")) ? ICE : (t.Finish || "Base");
     if (!inv.cards.has(num)) inv.cards.set(num, {});
     const slot = inv.cards.get(num); slot[f] = (slot[f] || 0) + 1;
     const img = n.display_image_url || n.image_url;
@@ -451,7 +456,9 @@ async function pumpPrices() {
     (async () => {
       const k = num + "|" + finish;
       try {
-        const traits = encodeURIComponent(JSON.stringify([{ traitType: "Card Number", value: String(num) }, { traitType: "Finish", value: finish }]));
+        const tr = [{ traitType: "Card Number", value: String(num) }].concat(finish === ICE
+          ? [{ traitType: "Finish", value: "Serialized" }, { traitType: "Serial", value: "1/1" }] : [{ traitType: "Finish", value: finish }]);
+        const traits = encodeURIComponent(JSON.stringify(tr));
         const j = await os(`/listings/collection/${SLUG}/best?limit=1&traits=${traits}`);
         if (!j || !Array.isArray(j.listings)) throw new Error("lookup failed");   // an error isn't "no listing"
         const l = j.listings[0];
@@ -482,7 +489,7 @@ function spares(inv) {
   }
   return out.sort((a, b) => a.num - b.num || FINISH_ORDER(a.finish) - FINISH_ORDER(b.finish));
 }
-// Spare rules: a Foil or Cracked Ice copy is spare only when the wallet has more than one of that finish.
+// Spare rules: a Foil, Serialized or Cracked Ice copy is spare only when the wallet has more than one of that finish.
 // Base copies are all spare when the wallet also holds the card in a rarer finish; otherwise one Base is kept.
 function spareOf(fins) {
   const rarer = Object.keys(fins).some(f => f !== "Base"), out = {};
@@ -529,7 +536,7 @@ function renderSummary() {
         <div class="stat"><b>${c.total}</b><span>cards</span></div>
         <div class="stat"><b>${c.spare}</b><span>spare copies</span></div>
         <div class="stat"><b>${c.foil}</b><span>foils</span></div>
-        ${c.ser ? `<div class="stat"><b>${c.ser}</b><span>cracked ice</span></div>` : ""}
+        ${c.ser ? `<div class="stat"><b>${c.ser}</b><span>serialized</span></div>` : ""}
       </div>
       <div class="bar" aria-label="${pct}% of the set"><i style="width:${pct}%;background:var(--${cls})"></i></div>
     </div>`;
@@ -672,7 +679,7 @@ function tilePrices(giver, num) {
   const sp = spareOf(giver.cards.get(num));
   return `<div class="tprices">${Object.entries(sp).filter(([, n]) => n > 0).sort((a, b) => FINISH_ORDER(a[0]) - FINISH_ORDER(b[0])).map(([f]) => {
     const k = num + "|" + f, v = prices.get(k); queuePrice(num, f);
-    return `<div><span class="cnt ${finishClass(f)}" title="${esc(f)}">${f === "Base" ? "B" : f === "Foil" ? "F" : "CI"}</span><span class="price${v === null ? " na" : ""}" data-price="${esc(k)}">${prices.has(k) ? (v == null ? "no listing" : sol(v)) : "…"}</span></div>`;
+    return `<div><span class="cnt ${finishClass(f)}" title="${esc(f)}">${esc(finishBadge(f))}</span><span class="price${v === null ? " na" : ""}" data-price="${esc(k)}">${prices.has(k) ? (v == null ? "no listing" : sol(v)) : "…"}</span></div>`;
   }).join("")}</div>`;
 }
 // Market floor (cheapest OpenSea listing) per finish, for cards a wallet is missing.
@@ -680,7 +687,7 @@ function tileMarket(num) {
   const fins = ((state.snap && state.snap.finishes) || ["Base", "Foil"]).slice().sort((a, b) => FINISH_ORDER(a) - FINISH_ORDER(b));
   return `<div class="tprices" title="Cheapest listing on OpenSea">${fins.map(f => {
     const k = num + "|" + f, v = prices.get(k); queuePrice(num, f);
-    return `<div><span class="cnt ${finishClass(f)}" title="${esc(f)}">${f === "Base" ? "B" : f === "Foil" ? "F" : "CI"}</span><span class="price${v === null ? " na" : ""}" data-price="${esc(k)}">${prices.has(k) ? (v == null ? "no listing" : sol(v)) : "…"}</span></div>`;
+    return `<div><span class="cnt ${finishClass(f)}" title="${esc(f)}">${esc(finishBadge(f))}</span><span class="price${v === null ? " na" : ""}" data-price="${esc(k)}">${prices.has(k) ? (v == null ? "no listing" : sol(v)) : "…"}</span></div>`;
   }).join("")}</div>`;
 }
 function passes(num) {
@@ -697,7 +704,7 @@ function holdings(inv, num, who, cls) {
   const f = inv.cards.get(num);
   if (!f) return `<div><span class="dot ${cls}"></span><span class="miss">missing</span></div>`;
   const chips = Object.entries(f).sort((a, b) => FINISH_ORDER(a[0]) - FINISH_ORDER(b[0]))
-    .map(([fin, n]) => `<span class="cnt ${finishClass(fin)}" title="${esc(fin)}">${fin === "Base" ? "B" : fin === "Foil" ? "F" : "CI"}×${n}</span>`).join("");
+    .map(([fin, n]) => `<span class="cnt ${finishClass(fin)}" title="${esc(fin)}">${esc(finishBadge(fin))}×${n}</span>`).join("");
   return `<div><span class="dot ${cls}"></span>${chips}</div>`;
 }
 function renderBinder() {
